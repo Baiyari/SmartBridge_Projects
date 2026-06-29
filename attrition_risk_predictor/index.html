@@ -1,0 +1,2975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Analytics | Attrition Intelligence Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --sidebar-bg: #0f172a;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            
+            --critical-high: #ef4444;
+            --medium: #f59e0b;
+            --low: #10b981;
+            
+            --male: #3b82f6;
+            --female: #ec4899;
+            
+            --card-radius: 16px;
+            --card-shadow: 0 4px 24px -4px rgba(15, 23, 42, 0.04), 0 2px 8px -2px rgba(15, 23, 42, 0.02);
+            --hover-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+            --card-border: 1px solid rgba(226, 232, 240, 0.8);
+            --transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ------------------ SIDEBAR ------------------ */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 32px 20px;
+            z-index: 100;
+            flex-shrink: 0;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 48px;
+            padding: 0 12px;
+        }
+
+        .brand i {
+            font-size: 28px;
+            color: var(--primary);
+            filter: drop-shadow(0 0 12px rgba(79, 70, 229, 0.4));
+        }
+
+        .brand h1 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 20px;
+            border-radius: 12px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-item:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(4px);
+        }
+
+        .nav-item.active {
+            color: white;
+            background: linear-gradient(90deg, rgba(79, 70, 229, 0.15) 0%, rgba(79, 70, 229, 0.05) 100%);
+            border: 1px solid rgba(79, 70, 229, 0.2);
+            box-shadow: inset 4px 0 0 var(--primary), 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-item i {
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .pulse-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--low);
+            box-shadow: 0 0 10px var(--low);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        /* ------------------ MAIN CONTENT ------------------ */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .view-container {
+            padding: 32px;
+            display: none;
+            animation: fadeIn 300ms ease-in forwards;
+            padding-bottom: 80px; /* footer space */
+        }
+
+        .view-container.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 12 Column Grid */
+        .grid-12 {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        /* Span helpers */
+        .col-span-12 { grid-column: span 12; }
+        .col-span-7 { grid-column: span 7; }
+        .col-span-6 { grid-column: span 6; }
+        .col-span-5 { grid-column: span 5; }
+        .col-span-4 { grid-column: span 4; }
+        .col-span-3 { grid-column: span 3; }
+        .col-span-2 { grid-column: span 2; }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            border: var(--card-border);
+            padding: 24px;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            box-shadow: var(--hover-shadow);
+            transform: translateY(-2px);
+        }
+
+        /* DASHBOARD HEADER */
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .dash-title {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .dash-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .filter-pill {
+            padding: 8px 20px;
+            border-radius: 100px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            background: white;
+            color: var(--text-muted);
+            transition: var(--transition);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .filter-pill:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+        }
+
+        .filter-pill.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .status-badge {
+            padding: 6px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--low);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ROW 1: STAT CARDS */
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+        }
+        .stat-card.blue::before { background: var(--primary); }
+        .stat-card.green::before { background: var(--low); }
+        .stat-card.red::before { background: var(--critical-high); }
+        .stat-card.orange::before { background: var(--medium); }
+        .stat-card.purple::before { background: #8b5cf6; }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .stat-label {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .stat-icon {
+            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .stat-card.blue .stat-icon { color: var(--primary); background: rgba(79, 70, 229, 0.1); }
+        .stat-card.green .stat-icon { color: var(--low); background: rgba(16, 185, 129, 0.1); }
+        .stat-card.red .stat-icon { color: var(--critical-high); background: rgba(239, 68, 68, 0.1); }
+        .stat-card.orange .stat-icon { color: var(--medium); background: rgba(245, 158, 11, 0.1); }
+        .stat-card.purple .stat-icon { color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+
+        .stat-value {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1;
+        }
+
+        /* CHARTS SECTION */
+        .chart-header {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .chart-wrapper.tall {
+            height: 400px;
+        }
+
+        /* Gender Donut Layout */
+        .gender-donuts {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            height: 100%;
+        }
+
+        .donut-container {
+            position: relative;
+            height: 160px;
+            width: 100%;
+        }
+
+        .donut-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .donut-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .donut-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+        
+        .donut-count {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        /* DATA SOURCE CARD */
+        .data-source-card {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            align-items: center;
+        }
+
+        .data-col {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding-right: 20px;
+            border-right: 1px solid #e2e8f0;
+        }
+        .data-col:last-child { border-right: none; }
+
+        .data-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(26, 115, 232, 0.1);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .data-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .data-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .data-value {
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .data-subtext {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .chip {
+            padding: 4px 8px;
+            border-radius: 100px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .chip.green { background: rgba(34, 197, 94, 0.1); color: var(--low); }
+        .chip.blue { background: rgba(59, 130, 246, 0.1); color: var(--male); }
+        .chip.pink { background: rgba(236, 72, 153, 0.1); color: var(--female); }
+        .chip.red { background: rgba(239, 68, 68, 0.1); color: var(--critical-high); }
+
+        .btn-run {
+            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        }
+
+        .btn-run:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+        }
+
+        /* TABLES */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        td {
+            padding: 16px;
+            font-size: 14px;
+            color: var(--text-main);
+            background: white;
+            border-top: 1px solid transparent;
+            border-bottom: 1px solid #f1f5f9;
+            transition: var(--transition);
+        }
+
+        td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+        td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+
+        tbody tr {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: var(--transition);
+        }
+
+        tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+            cursor: pointer;
+        }
+
+        tbody tr:hover td {
+            background: #f8fafc;
+            border-color: transparent;
+        }
+
+        tbody tr:hover td:first-child {
+            box-shadow: inset 4px 0 0 var(--primary);
+        }
+
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 100px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 100px;
+        }
+        
+        .bg-critical { background: var(--critical-high); }
+        .bg-high { background: var(--critical-high); }
+        .bg-medium { background: var(--medium); }
+        .bg-low { background: var(--low); }
+
+        .band-badge {
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+        }
+        .band-badge.CRITICAL { background: rgba(239, 68, 68, 0.1); color: var(--critical-high); }
+        .band-badge.HIGH { background: rgba(239, 68, 68, 0.1); color: var(--critical-high); }
+        .band-badge.MEDIUM { background: rgba(245, 158, 11, 0.1); color: var(--medium); }
+        .band-badge.LOW { background: rgba(34, 197, 94, 0.1); color: var(--low); }
+
+        /* FOOTER */
+        .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            border-top: 1px solid #e2e8f0;
+            background: var(--bg-color);
+        }
+
+        /* DETAIL PANEL */
+        .detail-panel {
+            position: fixed;
+            top: 0;
+            right: -500px;
+            width: 500px;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transition: transform 300ms ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-panel.open {
+            transform: translateX(-500px);
+        }
+
+        .panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(2px);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 300ms;
+        }
+
+        .panel-overlay.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, var(--sidebar-bg), #1e293b);
+            color: white;
+            padding: 32px 24px;
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .close-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .panel-content {
+            padding: 24px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* HR Actions */
+        .action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3); }
+        .btn-warning { background: linear-gradient(135deg, var(--medium), #d97706); color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); }
+        .btn-warning:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3); }
+        .btn-danger { background: linear-gradient(135deg, var(--critical-high), #dc2626); color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3); }
+
+        /* Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateY(150%);
+            transition: transform 300ms;
+            z-index: 2000;
+            font-weight: 600;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+        }
+        
+        .toast.success { border-left: 4px solid var(--low); }
+        .toast.error { border-left: 4px solid var(--critical-high); }
+
+        /* Other UI details from prompt */
+        .page-filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .search-box {
+            position: relative;
+            width: 300px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 100px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: var(--transition);
+        }
+        
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        /* Alerts UI */
+        .alert-card {
+            border-top: 4px solid transparent;
+        }
+        .alert-card.CRITICAL { border-top-color: var(--critical-high); }
+        .alert-card.HIGH { border-top-color: var(--critical-high); }
+        .alert-card.MEDIUM { border-top-color: var(--medium); }
+        .alert-card.LOW { border-top-color: var(--low); }
+        
+        /* Arc Gauge Container */
+        .gauge-container {
+            width: 120px;
+            height: 60px;
+            margin: 0 auto 16px;
+            position: relative;
+        }
+
+        /* Flags */
+        .flag-box {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #f1f5f9;
+            color: var(--text-muted);
+            display: inline-block;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+        .flag-box.active {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--critical-high);
+        }
+        
+        /* Typewriter */
+        .typewriter {
+            font-family: monospace;
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-main);
+            border-left: 3px solid var(--primary);
+            margin-top: 16px;
+        }
+
+        /* Behavior Cards */
+        .behavior-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .b-card {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .b-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .b-val {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        /* ═══════════════════ HR ACTION MODALS ═══════════════════ */
+        .hr-modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(15,23,42,0.55);
+            backdrop-filter: blur(3px);
+            z-index: 3000;
+        }
+        .hr-modal-overlay.open { display: block; }
+
+        .hr-modal {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.96);
+            width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 24px 64px rgba(15,23,42,0.18), 0 8px 24px rgba(15,23,42,0.08);
+            z-index: 3001;
+            transition: transform 250ms cubic-bezier(0.34,1.56,0.64,1), opacity 200ms ease;
+            opacity: 0;
+        }
+        .hr-modal.open {
+            display: block;
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
+
+        .hr-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 28px;
+            border-radius: 20px 20px 0 0;
+            color: white;
+        }
+        .hr-modal-title {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .hr-modal-sub {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+        .hr-modal-close {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            transition: background 200ms;
+            flex-shrink: 0;
+        }
+        .hr-modal-close:hover { background: rgba(255,255,255,0.3); }
+
+        .hr-modal-body {
+            padding: 24px 28px;
+        }
+        .hr-form-group {
+            margin-bottom: 16px;
+        }
+        .hr-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .hr-optional {
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+        .hr-input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            color: var(--text-main);
+            transition: border-color 200ms, box-shadow 200ms;
+            background: #fafbfc;
+        }
+        .hr-input:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+        }
+        .hr-textarea {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            color: var(--text-main);
+            resize: vertical;
+            min-height: 88px;
+            transition: border-color 200ms, box-shadow 200ms;
+            background: #fafbfc;
+        }
+        .hr-textarea:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+        }
+        .hr-modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding-top: 16px;
+            border-top: 1px solid #f1f5f9;
+            margin-top: 8px;
+        }
+        .hr-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 200ms;
+        }
+        .hr-btn-ghost {
+            background: #f1f5f9;
+            color: var(--text-muted);
+        }
+        .hr-btn-ghost:hover { background: #e2e8f0; color: var(--text-main); }
+        .hr-btn-danger {
+            background: linear-gradient(135deg,#ef4444,#dc2626);
+            color: white;
+            box-shadow: 0 4px 12px rgba(239,68,68,0.25);
+        }
+        .hr-btn-danger:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(239,68,68,0.35); }
+        .hr-btn-warning {
+            background: linear-gradient(135deg,#f59e0b,#d97706);
+            color: white;
+            box-shadow: 0 4px 12px rgba(245,158,11,0.25);
+        }
+        .hr-btn-warning:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(245,158,11,0.35); }
+        .hr-btn-primary {
+            background: linear-gradient(135deg,#6366f1,#4f46e5);
+            color: white;
+            box-shadow: 0 4px 12px rgba(99,102,241,0.25);
+        }
+        .hr-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99,102,241,0.35); }
+
+        /* Output tabs */
+        .hr-output-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #f1f5f9;
+            padding: 0 28px;
+        }
+        .hr-tab {
+            padding: 14px 20px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 200ms;
+        }
+        .hr-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        .hr-tab:hover:not(.active) { color: var(--text-main); }
+
+        /* Letter preview */
+        .hr-letter-preview {
+            width: 100%;
+            height: 240px;
+            padding: 14px;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            resize: none;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        /* Email preview */
+        .hr-email-preview-box {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+        .hr-email-field {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 13px;
+        }
+        .hr-email-field:last-child { border-bottom: none; }
+        .hr-email-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            min-width: 56px;
+            flex-shrink: 0;
+        }
+        .hr-email-val {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .hr-email-body-preview {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-main);
+            white-space: pre-wrap;
+            font-family: 'Inter', sans-serif;
+            max-height: 160px;
+            overflow-y: auto;
+            width: 100%;
+        }
+    
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="brand">
+            <i class="fa-solid fa-chart-line"></i>
+            <h1>AttritionIQ</h1>
+        </div>
+        
+        <div class="nav-items">
+            <a href="#" class="nav-item active" onclick="switchTab('dashboard')">
+                <i class="fa-solid fa-border-all"></i> Dashboard
+            </a>
+            <a href="#" class="nav-item" onclick="switchTab('employees')">
+                <i class="fa-solid fa-users"></i> Employees
+            </a>
+            <a href="#" class="nav-item" onclick="switchTab('alerts')">
+                <i class="fa-solid fa-bell"></i> Alerts
+            </a>
+        </div>
+        
+        <div class="pulse-indicator">
+            <div class="pulse-dot"></div>
+            <span style="font-size: 13px; font-weight: 500;">System Active</span>
+        </div>
+
+        <div id="nav-user-info" style="padding: 12px 16px; border-top: 1px solid #1e293b; margin-top: auto;"></div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dashboard" class="view-container active">
+            <!-- HEADER -->
+            <div class="dash-header">
+                <div>
+                    <h2 class="dash-title">HR Analytics | Attrition Intelligence Dashboard</h2>
+                    <p class="dash-subtitle">AI Workforce Intelligence System · IBM HR Dataset</p>
+                </div>
+                <div class="header-actions">
+                    <div class="status-badge"><i class="fa-solid fa-check-circle"></i> Live Model Active</div>
+                    <div class="filter-pill active" onclick="filterDept('All', this)">All</div>
+                    <div class="filter-pill" onclick="filterDept('Research & Development', this)">R&D</div>
+                    <div class="filter-pill" onclick="filterDept('Sales', this)">Sales</div>
+                    <div class="filter-pill" onclick="filterDept('Human Resources', this)">HR</div>
+                </div>
+            </div>
+
+            <!-- ROW 1: STATS -->
+            <div class="grid-12">
+                <div class="col-span-2 card stat-card blue">
+                    <div class="stat-header">
+                        <span class="stat-label">Total Employees</span>
+                        <i class="fa-solid fa-users stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-total">0</div>
+                </div>
+                <div class="col-span-2 card stat-card green">
+                    <div class="stat-header">
+                        <span class="stat-label">Active Employees</span>
+                        <i class="fa-solid fa-user-check stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-active">0</div>
+                </div>
+                <div class="col-span-2 card stat-card red">
+                    <div class="stat-header">
+                        <span class="stat-label">Total Risk</span>
+                        <i class="fa-solid fa-user-xmark stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-risk">0</div>
+                </div>
+                <div class="col-span-2 card stat-card orange">
+                    <div class="stat-header">
+                        <span class="stat-label">Attrition Rate</span>
+                        <i class="fa-solid fa-arrow-trend-up stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-rate">0%</div>
+                </div>
+                <div class="col-span-2 card stat-card purple">
+                    <div class="stat-header">
+                        <span class="stat-label">Avg Risk Score</span>
+                        <i class="fa-solid fa-chart-pie stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-avg-score">0</div>
+                </div>
+                <div class="col-span-2 card stat-card red">
+                    <div class="stat-header">
+                        <span class="stat-label">Critical Alerts</span>
+                        <i class="fa-solid fa-bell stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-critical">0</div>
+                </div>
+            </div>
+
+            <!-- ROW 2: DEPARTMENTS & GENDER -->
+            <div class="grid-12">
+                <div class="col-span-7 card">
+                    <div class="chart-header">
+                        <span>Risk Distribution by Department</span>
+                        <i class="fa-solid fa-building text-muted"></i>
+                    </div>
+                    <div class="chart-wrapper tall">
+                        <canvas id="deptChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-span-5 card">
+                    <div class="chart-header">
+                        <span>Risk Distribution by Gender</span>
+                        <i class="fa-solid fa-venus-mars text-muted"></i>
+                    </div>
+                    <div class="gender-donuts">
+                        <div class="donut-container">
+                            <canvas id="genderMaleChart"></canvas>
+                            <div class="donut-center">
+                                <i class="fa-solid fa-mars donut-icon" style="color: var(--male)"></i>
+                                <div class="donut-label">Male</div>
+                                <div class="donut-count" id="male-count">0</div>
+                            </div>
+                        </div>
+                        <div class="donut-container">
+                            <canvas id="genderFemaleChart"></canvas>
+                            <div class="donut-center">
+                                <i class="fa-solid fa-venus donut-icon" style="color: var(--female)"></i>
+                                <div class="donut-label">Female</div>
+                                <div class="donut-count" id="female-count">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 3: AGE, TENURE, SIGNALS -->
+            <div class="grid-12">
+                <div class="col-span-4 card">
+                    <div class="chart-header">
+                        <span>Attrition Risk by Age Group</span>
+                        <i class="fa-solid fa-cake-candles text-muted"></i>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="ageChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-span-4 card">
+                    <div class="chart-header">
+                        <span>Risk Trend by Years at Company</span>
+                        <i class="fa-solid fa-calendar-days text-muted"></i>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="tenureChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-span-4 card">
+                    <div class="chart-header">
+                        <span>Top Risk Signals</span>
+                        <i class="fa-solid fa-triangle-exclamation text-muted"></i>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="signalsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 4: SYSTEM STATUS -->
+            <div class="grid-12">
+                <div class="col-span-12 card data-source-card">
+                    <div class="data-col">
+                        <div class="data-icon"><i class="fa-solid fa-database"></i></div>
+                        <div class="data-info">
+                            <span class="data-label">Data Source</span>
+                            <span class="data-value" id="ds-badge">IBM HR Analytics CSV <span class="chip green">Connected</span></span>
+                            <span class="data-subtext">1,470 Records</span>
+                        </div>
+                    </div>
+                    <div class="data-col">
+                        <div class="data-icon" style="background: rgba(34,197,94,0.1); color: var(--low)"><i class="fa-regular fa-clock"></i></div>
+                        <div class="data-info">
+                            <span class="data-label">Last Refreshed</span>
+                            <span class="data-value" id="status-time">Just now <span class="chip green">Live</span></span>
+                            <span class="data-subtext">Auto-sync enabled</span>
+                        </div>
+                    </div>
+                    <div class="data-col">
+                        <div class="data-icon" style="background: rgba(245,158,11,0.1); color: var(--medium)"><i class="fa-solid fa-network-wired"></i></div>
+                        <div class="data-info">
+                            <span class="data-label">Data Pipeline</span>
+                            <span class="data-value">7 Behavioral Signals <span class="chip green">Healthy</span></span>
+                            <span class="data-subtext">Model accuracy: 92.4%</span>
+                        </div>
+                    </div>
+                    <div class="data-col" style="justify-content: flex-end; gap: 8px;">
+                        <button class="btn-run" onclick="openDataSourceModal()" style="background: white; color: var(--text-main); border: 1px solid #e2e8f0; box-shadow: none;">
+                            <i class="fa-solid fa-database" style="color: var(--primary);"></i> Data Source
+                        </button>
+                        <button class="btn-run" onclick="runAnalysis(this)">
+                            <i class="fa-solid fa-rotate-right"></i> Re-run Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 5: TOP AT-RISK TABLE -->
+            <div class="grid-12">
+                <div class="col-span-12 card">
+                    <div class="chart-header" style="margin-bottom: 24px;">
+                        <span>Top At-Risk Employees</span>
+                        <button class="btn-run" onclick="switchTab('employees')" style="background: #f1f5f9; color: var(--text-main); font-size: 12px; padding: 6px 12px;"><i class="fa-solid fa-arrow-right"></i> View All</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Role</th>
+                                    <th>Primary Signal</th>
+                                    <th>Risk Score</th>
+                                    <th>Band</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="top-risk-tbody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMPLOYEES VIEW -->
+        <div id="view-employees" class="view-container">
+            <div class="dash-header">
+                <div>
+                    <h2 class="dash-title">Employee Directory</h2>
+                    <p class="dash-subtitle">Analyze individual risk profiles and behavioral flags</p>
+                </div>
+            </div>
+
+            <div class="page-filters card" style="margin-bottom: 24px;">
+                <div class="search-box">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" id="emp-search" placeholder="Search by ID or Role..." onkeyup="filterEmployeesTable()">
+                </div>
+                <select id="emp-dept-filter" onchange="filterEmployeesTable()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; background: white;">
+                    <option value="All">All Departments</option>
+                    <option value="Research & Development">Research & Development</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Human Resources">Human Resources</option>
+                </select>
+                <div class="filter-pill active" data-band="ALL" onclick="setEmpBandFilter(this, 'ALL')">All Bands</div>
+                <div class="filter-pill" data-band="CRITICAL" onclick="setEmpBandFilter(this, 'CRITICAL')">Critical</div>
+                <div class="filter-pill" data-band="HIGH" onclick="setEmpBandFilter(this, 'HIGH')">High</div>
+                <div class="filter-pill" data-band="MEDIUM" onclick="setEmpBandFilter(this, 'MEDIUM')">Medium</div>
+                <div class="filter-pill" data-band="LOW" onclick="setEmpBandFilter(this, 'LOW')">Low</div>
+            </div>
+
+            <div class="card table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Department</th>
+                            <th>Role</th>
+                            <th>Risk Score</th>
+                            <th>Band</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="emp-tbody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ALERTS VIEW -->
+        <div id="view-alerts" class="view-container">
+            <div class="dash-header">
+                <div>
+                    <h2 class="dash-title">Retention Alerts</h2>
+                    <p class="dash-subtitle">Actionable AI recommendations for high-risk employees</p>
+                </div>
+            </div>
+
+            <div class="page-filters card" style="margin-bottom: 24px;" id="alerts-filters">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="grid-12" id="alerts-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+
+
+    <!-- EMPLOYEE DETAIL PANEL -->
+    <div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+    <div class="detail-panel" id="detail-panel">
+        <button class="close-btn" onclick="closePanel()"><i class="fa-solid fa-times"></i></button>
+        <div class="panel-header" style="background: linear-gradient(135deg, #1a73e8, #1e3a8a);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2 id="panel-id" style="font-size: 24px; margin-bottom: 4px; font-weight: 700;">Employee Name</h2>
+                    <div id="panel-role" style="font-size: 14px; color: #e2e8f0; font-weight: 500;">Role · Department</div>
+                </div>
+                <div id="panel-header-badge" class="band-badge" style="background: white; border-radius: 6px; padding: 6px 12px; font-weight: 700; font-size: 12px; color: var(--critical-high);">CRITICAL RISK</div>
+            </div>
+        </div>
+        <div class="panel-content">
+            <div style="text-align: center; margin-bottom: 24px; display: none;">
+                <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Composite Risk Score</div>
+                <div class="gauge-container">
+                    <canvas id="panelGauge"></canvas>
+                    <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: 700; color: var(--text-main);" id="panel-score">0</div>
+                </div>
+                <div id="panel-band" class="band-badge CRITICAL">CRITICAL</div>
+            </div>
+
+            <h3 style="font-size: 14px; margin-bottom: 16px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Behavioral Indicators</h3>
+            <div class="behavior-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">
+                        <i class="fa-solid fa-user-clock"></i> Absenteeism Risk
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span class="b-val" id="b-absent" style="font-size: 16px; font-weight: 700;">Normal</span>
+                        <i class="fa-solid fa-gauge" id="b-absent-icon" style="font-size: 18px;"></i>
+                    </div>
+                </div>
+                <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">
+                        <i class="fa-solid fa-users"></i> Engagement Level
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span class="b-val" id="b-engage" style="font-size: 16px; font-weight: 700;">Average</span>
+                        <i class="fa-solid fa-gauge" id="b-engage-icon" style="font-size: 18px;"></i>
+                    </div>
+                </div>
+                <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">
+                        <i class="fa-solid fa-fire"></i> Burnout Indicators
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span class="b-val" id="b-burnout" style="font-size: 16px; font-weight: 700;">Low</span>
+                        <i class="fa-solid fa-gauge" id="b-burnout-icon" style="font-size: 18px;"></i>
+                    </div>
+                </div>
+                <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">
+                        <i class="fa-solid fa-chart-line"></i> Career Stagnation
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span class="b-val" id="b-career" style="font-size: 16px; font-weight: 700;">Stable</span>
+                        <i class="fa-solid fa-gauge" id="b-career-icon" style="font-size: 18px;"></i>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="font-size: 14px; margin-bottom: 16px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Active Flags</h3>
+            <div id="panel-flags" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;"></div>
+
+            <h3 style="font-size: 14px; margin-bottom: 16px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Retention Suggestion</h3>
+            <div id="panel-suggestion" style="background: white; border-radius: 8px; padding: 16px; border-left: 4px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.04); font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.6; color: var(--text-main); margin-bottom: 24px;"></div>
+
+            <div class="action-btns">
+                <button class="btn-action btn-primary"><i class="fa-solid fa-calendar-check"></i> Schedule 1:1 Check-in</button>
+                <button class="btn-action btn-warning"><i class="fa-solid fa-award"></i> Send Recognition</button>
+                <button class="btn-action btn-danger"><i class="fa-solid fa-triangle-exclamation"></i> Alert HR Manager</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DATA SOURCE MODAL -->
+    <div class="panel-overlay" id="ds-overlay" onclick="closeModal('ds-modal', 'ds-overlay')"></div>
+    <div class="card" id="ds-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width: 500px; z-index: 1000;">
+        <h3 style="margin-bottom: 16px;">Data Source</h3>
+        <div style="display: flex; gap: 16px; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px;">
+            <div id="tab-csv" onclick="switchDsTab('csv')" style="padding: 8px; cursor: pointer; border-bottom: 2px solid var(--primary); font-weight: 600; color: var(--primary);">Upload CSV</div>
+            <div id="tab-sheets" onclick="switchDsTab('sheets')" style="padding: 8px; cursor: pointer; color: var(--text-muted); font-weight: 500;">Google Sheets</div>
+        </div>
+        
+        <div id="ds-csv-content">
+            <div style="border: 2px dashed #e2e8f0; padding: 32px; text-align: center; border-radius: 8px; margin-bottom: 16px; cursor: pointer;" onclick="document.getElementById('csv-upload').click()">
+                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 24px; color: var(--primary); margin-bottom: 8px;"></i>
+                <div style="font-weight: 600; font-size: 14px;">Click to upload CSV</div>
+                <div style="font-size: 12px; color: var(--text-muted);" id="csv-filename">.csv files only</div>
+                <input type="file" id="csv-upload" accept=".csv" style="display:none;" onchange="document.getElementById('csv-filename').innerText=this.files[0]?.name||'.csv files only'">
+            </div>
+            <button class="btn-action btn-primary" onclick="submitDataSource('csv')">Load & Analyze</button>
+        </div>
+        
+        <div id="ds-sheets-content" style="display:none;">
+            <input type="text" id="sheet-url" placeholder="Paste Google Sheets URL here..." style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px; outline: none; font-family: inherit;">
+            <button class="btn-action btn-primary" onclick="submitDataSource('sheets')">Connect & Analyze</button>
+        </div>
+    </div>
+
+    <!-- ═══ TERMINATE MODAL ═══ -->
+    <div class="hr-modal-overlay" id="term-overlay" onclick="closeHrModal('term')"></div>
+    <div class="hr-modal" id="term-modal">
+        <div class="hr-modal-header" style="background:linear-gradient(135deg,#ef4444,#dc2626);">
+            <div><div class="hr-modal-title"><i class="fa-solid fa-user-slash"></i> Termination Notice</div><div class="hr-modal-sub" id="term-emp-info">Employee · Dept</div></div>
+            <button class="hr-modal-close" onclick="closeHrModal('term')"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div id="term-step1" class="hr-modal-body">
+            <div class="hr-form-group"><label class="hr-label">Reason for Termination <span style="color:var(--critical-high)">*</span></label><textarea id="term-reason" class="hr-textarea" placeholder="Describe the grounds for termination..."></textarea></div>
+            <div class="hr-form-group"><label class="hr-label">Authorized By <span style="color:var(--critical-high)">*</span></label><input id="term-auth" class="hr-input" type="text" placeholder="Your full name / HR Manager name"></div>
+            <div class="hr-form-group"><label class="hr-label">Recipient Email <span class="hr-optional">(optional — for one-click send)</span></label><input id="term-email" class="hr-input" type="email" placeholder="employee@company.com"></div>
+            <div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="closeHrModal('term')">Cancel</button><button class="hr-btn hr-btn-danger" onclick="buildTermination()"><i class="fa-solid fa-file-lines"></i> Generate Letter</button></div>
+        </div>
+        <div id="term-step2" style="display:none;">
+            <div class="hr-output-tabs"><button class="hr-tab active" id="term-tab-letter" onclick="switchOutputTab('term','letter')"><i class="fa-solid fa-file-alt"></i> Letter</button><button class="hr-tab" id="term-tab-email" onclick="switchOutputTab('term','email')"><i class="fa-solid fa-envelope"></i> Email Draft</button></div>
+            <div id="term-output-letter" class="hr-modal-body" style="padding-top:0;"><textarea id="term-letter-text" class="hr-letter-preview" readonly></textarea><div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="backToStep1('term')"><i class="fa-solid fa-arrow-left"></i> Edit</button><button class="hr-btn hr-btn-danger" onclick="downloadLetter('term','Termination')"><i class="fa-solid fa-download"></i> Download .txt</button></div></div>
+            <div id="term-output-email" class="hr-modal-body" style="display:none;padding-top:0;"><div class="hr-email-preview-box"><div class="hr-email-field"><span class="hr-email-label">To:</span><span id="term-email-to" class="hr-email-val"></span></div><div class="hr-email-field"><span class="hr-email-label">Subject:</span><span id="term-email-subject" class="hr-email-val"></span></div><div class="hr-email-field" style="flex-direction:column;align-items:flex-start;gap:6px;"><span class="hr-email-label">Body:</span><div id="term-email-body" class="hr-email-body-preview"></div></div></div><div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="backToStep1('term')"><i class="fa-solid fa-arrow-left"></i> Edit</button><button class="hr-btn hr-btn-danger" onclick="openMailto('term')"><i class="fa-solid fa-paper-plane"></i> Open in Mail App</button><button class="hr-btn" style="background:#f1f5f9;color:var(--text-main);" onclick="copyEmailBody('term')"><i class="fa-solid fa-copy"></i> Copy Body</button></div></div>
+        </div>
+    </div>
+
+    <!-- ═══ WARNING MODAL ═══ -->
+    <div class="hr-modal-overlay" id="warn-overlay" onclick="closeHrModal('warn')"></div>
+    <div class="hr-modal" id="warn-modal">
+        <div class="hr-modal-header" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
+            <div><div class="hr-modal-title"><i class="fa-solid fa-triangle-exclamation"></i> Warning Letter</div><div class="hr-modal-sub" id="warn-emp-info">Employee · Dept</div></div>
+            <button class="hr-modal-close" onclick="closeHrModal('warn')"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div id="warn-step1" class="hr-modal-body">
+            <div class="hr-form-group"><label class="hr-label">Additional Notes <span class="hr-optional">(optional)</span></label><textarea id="warn-reason" class="hr-textarea" placeholder="Any specific observations or context to include..."></textarea></div>
+            <div class="hr-form-group"><label class="hr-label">Issued By <span style="color:var(--critical-high)">*</span></label><input id="warn-auth" class="hr-input" type="text" placeholder="Your full name / HR Manager name"></div>
+            <div class="hr-form-group"><label class="hr-label">Recipient Email <span class="hr-optional">(optional)</span></label><input id="warn-email" class="hr-input" type="email" placeholder="employee@company.com"></div>
+            <div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="closeHrModal('warn')">Cancel</button><button class="hr-btn hr-btn-warning" onclick="buildWarning()"><i class="fa-solid fa-file-lines"></i> Generate Letter</button></div>
+        </div>
+        <div id="warn-step2" style="display:none;">
+            <div class="hr-output-tabs"><button class="hr-tab active" id="warn-tab-letter" onclick="switchOutputTab('warn','letter')"><i class="fa-solid fa-file-alt"></i> Letter</button><button class="hr-tab" id="warn-tab-email" onclick="switchOutputTab('warn','email')"><i class="fa-solid fa-envelope"></i> Email Draft</button></div>
+            <div id="warn-output-letter" class="hr-modal-body" style="padding-top:0;"><textarea id="warn-letter-text" class="hr-letter-preview" readonly></textarea><div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="backToStep1('warn')"><i class="fa-solid fa-arrow-left"></i> Edit</button><button class="hr-btn hr-btn-warning" onclick="downloadLetter('warn','Warning')"><i class="fa-solid fa-download"></i> Download .txt</button></div></div>
+            <div id="warn-output-email" class="hr-modal-body" style="display:none;padding-top:0;"><div class="hr-email-preview-box"><div class="hr-email-field"><span class="hr-email-label">To:</span><span id="warn-email-to" class="hr-email-val"></span></div><div class="hr-email-field"><span class="hr-email-label">Subject:</span><span id="warn-email-subject" class="hr-email-val"></span></div><div class="hr-email-field" style="flex-direction:column;align-items:flex-start;gap:6px;"><span class="hr-email-label">Body:</span><div id="warn-email-body" class="hr-email-body-preview"></div></div></div><div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="backToStep1('warn')"><i class="fa-solid fa-arrow-left"></i> Edit</button><button class="hr-btn hr-btn-warning" onclick="openMailto('warn')"><i class="fa-solid fa-paper-plane"></i> Open in Mail App</button><button class="hr-btn" style="background:#f1f5f9;color:var(--text-main);" onclick="copyEmailBody('warn')"><i class="fa-solid fa-copy"></i> Copy Body</button></div></div>
+        </div>
+    </div>
+
+    <!-- ═══ PIP MODAL ═══ -->
+    <div class="hr-modal-overlay" id="pip-overlay" onclick="closeHrModal('pip')"></div>
+    <div class="hr-modal" id="pip-modal">
+        <div class="hr-modal-header" style="background:linear-gradient(135deg,#6366f1,#4f46e5);">
+            <div><div class="hr-modal-title"><i class="fa-solid fa-clipboard-list"></i> Performance Improvement Plan</div><div class="hr-modal-sub" id="pip-emp-info">Employee · Dept</div></div>
+            <button class="hr-modal-close" onclick="closeHrModal('pip')"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div id="pip-step1" class="hr-modal-body">
+            <div class="hr-form-group"><label class="hr-label">30-Day Goals / Manager Notes <span class="hr-optional">(optional)</span></label><textarea id="pip-goals" class="hr-textarea" placeholder="Specific targets or improvement areas for this employee..."></textarea></div>
+            <div class="hr-form-group"><label class="hr-label">Issued By <span style="color:var(--critical-high)">*</span></label><input id="pip-auth" class="hr-input" type="text" placeholder="Your full name / HR Manager name"></div>
+            <div class="hr-form-group"><label class="hr-label">Recipient Email <span class="hr-optional">(optional)</span></label><input id="pip-email" class="hr-input" type="email" placeholder="employee@company.com"></div>
+            <div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="closeHrModal('pip')">Cancel</button><button class="hr-btn hr-btn-primary" onclick="buildPip()"><i class="fa-solid fa-file-lines"></i> Generate PIP</button></div>
+        </div>
+        <div id="pip-step2" style="display:none;">
+            <div class="hr-output-tabs"><button class="hr-tab active" id="pip-tab-letter" onclick="switchOutputTab('pip','letter')"><i class="fa-solid fa-file-alt"></i> Letter</button><button class="hr-tab" id="pip-tab-email" onclick="switchOutputTab('pip','email')"><i class="fa-solid fa-envelope"></i> Email Draft</button></div>
+            <div id="pip-output-letter" class="hr-modal-body" style="padding-top:0;"><textarea id="pip-letter-text" class="hr-letter-preview" readonly></textarea><div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="backToStep1('pip')"><i class="fa-solid fa-arrow-left"></i> Edit</button><button class="hr-btn hr-btn-primary" onclick="downloadLetter('pip','PIP')"><i class="fa-solid fa-download"></i> Download .txt</button></div></div>
+            <div id="pip-output-email" class="hr-modal-body" style="display:none;padding-top:0;"><div class="hr-email-preview-box"><div class="hr-email-field"><span class="hr-email-label">To:</span><span id="pip-email-to" class="hr-email-val"></span></div><div class="hr-email-field"><span class="hr-email-label">Subject:</span><span id="pip-email-subject" class="hr-email-val"></span></div><div class="hr-email-field" style="flex-direction:column;align-items:flex-start;gap:6px;"><span class="hr-email-label">Body:</span><div id="pip-email-body" class="hr-email-body-preview"></div></div></div><div class="hr-modal-footer"><button class="hr-btn hr-btn-ghost" onclick="backToStep1('pip')"><i class="fa-solid fa-arrow-left"></i> Edit</button><button class="hr-btn hr-btn-primary" onclick="openMailto('pip')"><i class="fa-solid fa-paper-plane"></i> Open in Mail App</button><button class="hr-btn" style="background:#f1f5f9;color:var(--text-main);" onclick="copyEmailBody('pip')"><i class="fa-solid fa-copy"></i> Copy Body</button></div></div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast">
+        <i class="fa-solid fa-circle-check" id="toast-icon"></i>
+        <span id="toast-msg">Success</span>
+    </div>
+    <!-- AUTH MODAL -->
+    <div id="auth-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1e1e2e; padding:2rem; border-radius:14px; width:380px; color:white; box-shadow:0 8px 40px rgba(0,0,0,0.6); position:relative;">
+            <h2 id="auth-title" style="margin-bottom:0.4rem; font-size:1.4rem;">Sign In</h2>
+            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1.4rem;">Access the Attrition Intelligence Dashboard</p>
+            <input id="auth-email" type="email" placeholder="Email address" style="width:100%; padding:11px 14px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:white; font-size:0.95rem; box-sizing:border-box;">
+            <input id="auth-password" type="password" placeholder="Password" style="width:100%; padding:11px 14px; margin-bottom:16px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:white; font-size:0.95rem; box-sizing:border-box;">
+            <button onclick="submitAuth()" style="width:100%; padding:12px; background:#6366f1; color:white; border:none; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:600;">Continue</button>
+            <p id="auth-error" style="color:#f87171; text-align:center; margin-top:10px; font-size:0.85rem; min-height:18px;"></p>
+            <p onclick="toggleAuthMode()" style="cursor:pointer; text-align:center; margin-top:0.4rem; color:#94a3b8; font-size:0.85rem;" id="auth-toggle">Don't have an account? <span style="color:#6366f1; font-weight:600;">Sign up</span></p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+
+        // ── AUTH ──────────────────────────────────────────────────────────
+        let authMode = 'login';
+
+        function getToken() { return localStorage.getItem('auth_token'); }
+        function setToken(t) { localStorage.setItem('auth_token', t); }
+        function clearToken() { localStorage.removeItem('auth_token'); }
+
+        function authHeaders() {
+            const t = getToken();
+            return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' }
+                     : { 'Content-Type': 'application/json' };
+        }
+
+        function showAuthModal() {
+            document.getElementById('auth-overlay').style.display = 'flex';
+            document.getElementById('auth-error').textContent = '';
+        }
+
+        function toggleAuthMode() {
+            authMode = authMode === 'login' ? 'signup' : 'login';
+            document.getElementById('auth-title').textContent = authMode === 'login' ? 'Sign In' : 'Create Account';
+            document.getElementById('auth-toggle').innerHTML = authMode === 'login'
+                ? 'Don\'t have an account? <span style="color:#6366f1;font-weight:600;">Sign up</span>'
+                : 'Already have an account? <span style="color:#6366f1;font-weight:600;">Sign in</span>';
+            document.getElementById('auth-error').textContent = '';
+        }
+
+        async function submitAuth() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const errorEl = document.getElementById('auth-error');
+            if (!email || !password) { errorEl.textContent = 'Please fill in all fields.'; return; }
+            const endpoint = authMode === 'login' ? '/auth/login' : '/auth/signup';
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    setToken(data.access_token);
+                    document.getElementById('auth-overlay').style.display = 'none';
+                    updateUserUI(data.email);
+                    await fetchAllData();
+                    renderDashboard(); renderEmployees(); renderAlerts();
+                } else {
+                    errorEl.textContent = data.detail || 'Something went wrong.';
+                }
+            } catch (e) { errorEl.textContent = 'Could not connect to server.'; }
+        }
+
+        function logoutUser() {
+            clearToken();
+            location.reload();
+        }
+
+        function updateUserUI(email) {
+            const el = document.getElementById('nav-user-info');
+            if (el) el.innerHTML = `<span style="font-size:13px;color:#94a3b8;">${email}</span> <button onclick="logoutUser()" style="margin-left:8px;padding:4px 10px;background:#334155;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;">Logout</button>`;
+        }
+
+        async function checkAuthOnLoad() {
+            const token = getToken();
+            if (!token) { showAuthModal(); return; }
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, { headers: authHeaders() });
+                if (res.ok) {
+                    const data = await res.json();
+                    updateUserUI(data.email);
+                } else {
+                    clearToken(); showAuthModal();
+                }
+            } catch (e) { showAuthModal(); }
+        }
+        
+        let allEmployees = [];
+        let dashboardSummary = null;
+        let deptChartInst, genderMaleChartInst, genderFemaleChartInst, ageChartInst, tenureChartInst, signalsChartInst, panelGaugeInst;
+
+        // Colors
+        const C_CRIT = '#ef4444';
+        const C_HIGH = '#ef4444';
+        const C_MED = '#f59e0b';
+        const C_LOW = '#22c55e';
+        const C_MALE = '#3b82f6';
+        const C_FEMALE = '#ec4899';
+        const C_RND = '#6366f1';
+        const C_SALES = '#f59e0b';
+        const C_HR = '#10b981';
+
+        // ---------------- INITIALIZATION ----------------
+        document.addEventListener('DOMContentLoaded', async () => {
+            updateRefreshTime();
+            await checkAuthOnLoad();
+            if (getToken()) {
+                await fetchAllData();
+                renderDashboard();
+                renderEmployees();
+                renderAlerts();
+            }
+        });
+
+        async function fetchAllData() {
+            try {
+                const [dashRes, empRes] = await Promise.all([
+                    fetch(`${API_BASE}/dashboard-summary`, { headers: authHeaders() }),
+                    fetch(`${API_BASE}/employees?limit=1470`, { headers: authHeaders() })
+                ]);
+                
+                if(dashRes.ok) dashboardSummary = await dashRes.json();
+                if(empRes.ok) {
+                    const empData = await empRes.json();
+                    allEmployees = empData.employees || [];
+                }
+            } catch (e) {
+                showToast('Failed to fetch data from backend', 'error');
+                console.error(e);
+            }
+        }
+
+        // ---------------- UTILS ----------------
+        function updateRefreshTime() {
+            const now = new Date();
+            document.getElementById('status-time').innerHTML = 
+                `${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} <span class="chip green">Live</span>`;
+        }
+
+        function showToast(msg, type='success') {
+            const t = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-msg').innerText = msg;
+            
+            t.className = 'toast ' + type + ' show';
+            icon.className = type === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-exclamation';
+            icon.style.color = type === 'success' ? 'var(--low)' : 'var(--critical-high)';
+            
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById('view-' + tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            // Re-animate if dashboard
+            if(tabId === 'dashboard' && dashboardSummary) {
+                animateNumbers();
+            }
+        }
+
+        function animateValue(obj, start, end, duration, formatFn = (v) => Math.floor(v)) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = formatFn(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function getAvatarInitials(role, id) {
+            if (role) return role.substring(0, 2).toUpperCase();
+            return id.toString().substring(0, 2);
+        }
+
+        function getRandomColor(id) {
+            const colors = ['#1a73e8', '#9c27b0', '#e91e63', '#3f51b5', '#00bcd4', '#009688', '#f97316', '#795548'];
+            return colors[(id || 0) % colors.length];
+        }
+
+        function getYears(e) {
+            return e.years_at_company ?? e.YearsAtCompany ?? e.yearsAtCompany ?? 0;
+        }
+
+        // ---------------- DASHBOARD RENDERING ----------------
+        let currentDeptFilter = 'All';
+
+        function filterDept(dept, el) {
+            document.querySelectorAll('.dash-header .filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            currentDeptFilter = dept;
+            renderDashboard();
+        }
+
+        function animateNumbers() {
+            if (!dashboardSummary) return;
+            const d = dashboardSummary;
+            
+            let filteredEmps = allEmployees;
+            let activeEmps = d.total_employees - d.high_critical_count;
+            let riskCount = d.high_critical_count;
+            let rate = (d.high_critical_count / d.total_employees * 100);
+            let avgScore = d.avg_risk_score;
+            let crits = d.risk_distribution.CRITICAL || 0;
+
+            if (currentDeptFilter !== 'All') {
+                filteredEmps = allEmployees.filter(e => (e.Department || e.department) === currentDeptFilter);
+                const total = filteredEmps.length;
+                const riskEmps = filteredEmps.filter(e => e.risk_band === 'HIGH' || e.risk_band === 'CRITICAL');
+                riskCount = riskEmps.length;
+                activeEmps = total - riskCount;
+                rate = total ? (riskCount / total * 100) : 0;
+                avgScore = total ? filteredEmps.reduce((s,e) => s + (e.composite_score||0), 0) / total : 0;
+                crits = filteredEmps.filter(e => e.risk_band === 'CRITICAL').length;
+                
+                animateValue(document.getElementById('stat-total'), 0, total, 1000);
+            } else {
+                animateValue(document.getElementById('stat-total'), 0, d.total_employees, 1000);
+            }
+
+            animateValue(document.getElementById('stat-active'), 0, activeEmps, 1000);
+            animateValue(document.getElementById('stat-risk'), 0, riskCount, 1000);
+            animateValue(document.getElementById('stat-rate'), 0, rate, 1000, v => v.toFixed(1) + '%');
+            animateValue(document.getElementById('stat-avg-score'), 0, avgScore, 1000, v => Math.floor(v));
+            animateValue(document.getElementById('stat-critical'), 0, crits, 1000);
+        }
+
+        function renderDashboard() {
+            if (!dashboardSummary || !allEmployees.length) return;
+            
+            animateNumbers();
+            
+            let emps = allEmployees;
+            if(currentDeptFilter !== 'All') {
+                emps = allEmployees.filter(e => (e.Department || e.department) === currentDeptFilter);
+            }
+
+            renderDeptChart(emps);
+            renderGenderCharts(emps);
+            renderAgeChart(emps);
+            renderTenureChart(emps);
+            renderSignalsChart(emps);
+            renderTopRiskTable(emps);
+            updateDeptFilters();
+        }
+
+        function updateDeptFilters() {
+            if (!allEmployees.length) return;
+            const counts = { 'All': allEmployees.length };
+            allEmployees.forEach(e => {
+                const d = e.Department || e.department;
+                if(d) counts[d] = (counts[d] || 0) + 1;
+            });
+            
+            const headerActions = document.querySelector('.header-actions');
+            if(!headerActions) return;
+            
+            const statusBadge = headerActions.querySelector('.status-badge') ? headerActions.querySelector('.status-badge').outerHTML : '<div class="status-badge"><i class="fa-solid fa-check-circle"></i> Live Model Active</div>';
+            
+            const depts = [
+                { name: 'All', label: 'All' },
+                { name: 'Research & Development', label: 'R&D' },
+                { name: 'Sales', label: 'Sales' },
+                { name: 'Human Resources', label: 'HR' }
+            ];
+
+            let html = statusBadge;
+            depts.forEach(d => {
+                const count = counts[d.name] || 0;
+                const activeClass = currentDeptFilter === d.name ? 'active' : '';
+                html += `\n                    <div class="filter-pill ${activeClass}" onclick="filterDept('${d.name}', this)">${d.label} <span style="background: rgba(128,128,128,0.2); padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 4px;">${count}</span></div>`;
+            });
+            headerActions.innerHTML = html;
+        }
+
+        Chart.defaults.font.family = 'Inter';
+        Chart.defaults.color = '#64748b';
+
+        // 1. Dept Stacked Bar
+        function renderDeptChart(emps) {
+            const ctx = document.getElementById('deptChart').getContext('2d');
+            if(deptChartInst) deptChartInst.destroy();
+
+            // Aggregate by Dept
+            const deptStats = {};
+            emps.forEach(e => {
+                const d = e.Department || e.department || 'Unknown';
+                if(!deptStats[d]) deptStats[d] = { LOW:0, MEDIUM:0, HIGH:0, CRITICAL:0 };
+                deptStats[d][e.risk_band || 'LOW']++;
+            });
+
+            const labels = Object.keys(deptStats);
+            const dataLow = labels.map(l => deptStats[l].LOW);
+            const dataMed = labels.map(l => deptStats[l].MEDIUM);
+            const dataHigh = labels.map(l => deptStats[l].HIGH);
+            const dataCrit = labels.map(l => deptStats[l].CRITICAL);
+
+            deptChartInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'LOW', data: dataLow, backgroundColor: C_LOW },
+                        { label: 'MEDIUM', data: dataMed, backgroundColor: C_MED },
+                        { label: 'HIGH', data: dataHigh, backgroundColor: C_HIGH },
+                        { label: 'CRITICAL', data: dataCrit, backgroundColor: C_CRIT }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { color: '#f0f4ff' } },
+                        y: { stacked: true, grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12 }
+                    },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        // 2. Gender Donuts
+        function renderGenderCharts(emps) {
+            const maleCtx = document.getElementById('genderMaleChart').getContext('2d');
+            const femaleCtx = document.getElementById('genderFemaleChart').getContext('2d');
+            
+            if(genderMaleChartInst) genderMaleChartInst.destroy();
+            if(genderFemaleChartInst) genderFemaleChartInst.destroy();
+
+            // Real gender data
+            const maleCount = dashboardSummary.gender_distribution && dashboardSummary.gender_distribution["Male"] !== undefined ? dashboardSummary.gender_distribution["Male"] : 0;
+            const femaleCount = dashboardSummary.gender_distribution && dashboardSummary.gender_distribution["Female"] !== undefined ? dashboardSummary.gender_distribution["Female"] : 0;
+
+            document.getElementById('male-count').innerText = maleCount;
+            document.getElementById('female-count').innerText = femaleCount;
+
+            const countBands = (arr) => {
+                const b = { LOW:0, MEDIUM:0, HIGH:0, CRITICAL:0 };
+                arr.forEach(e => b[e.risk_band || 'LOW']++);
+                return [b.LOW, b.MEDIUM, b.HIGH, b.CRITICAL];
+            };
+
+            const males = emps.filter(e => (e.Gender || e.gender || '').trim().toLowerCase() === 'male');
+            const females = emps.filter(e => (e.Gender || e.gender || '').trim().toLowerCase() === 'female');
+
+            const maleData = countBands(males);
+            const femaleData = countBands(females);
+
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+                },
+                animation: { duration: 1500, easing: 'easeOutQuart' }
+            };
+
+            genderMaleChartInst = new Chart(maleCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+                    datasets: [{
+                        data: maleData,
+                        backgroundColor: [C_LOW, C_MED, C_HIGH, C_CRIT],
+                        borderWidth: 0
+                    }]
+                },
+                options: commonOptions
+            });
+
+            genderFemaleChartInst = new Chart(femaleCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+                    datasets: [{
+                        data: femaleData,
+                        backgroundColor: [C_LOW, C_MED, C_HIGH, C_CRIT],
+                        borderWidth: 0
+                    }]
+                },
+                options: commonOptions
+            });
+        }
+
+        // 3. Age Group
+        function renderAgeChart(emps) {
+            const ctx = document.getElementById('ageChart').getContext('2d');
+            if(ageChartInst) ageChartInst.destroy();
+
+            const ageBands = dashboardSummary.age_group_risk || { "18-25": 0, "26-35": 0, "36-45": 0, "46-55": 0, "55+": 0 };
+            
+            const labels = Object.keys(ageBands);
+            const data = Object.values(ageBands);
+            
+            // Gradient based on count
+            const max = Math.max(...data) || 1;
+            const bgColors = data.map(d => {
+                const ratio = d / max;
+                // blue to red
+                const r = Math.round(26 + ratio * (239 - 26));
+                const g = Math.round(115 - ratio * (115 - 68));
+                const b = Math.round(232 - ratio * (232 - 68));
+                return `rgba(${r}, ${g}, ${b}, 0.8)`;
+            });
+
+            ageChartInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Average Risk Score',
+                        data: data,
+                        backgroundColor: bgColors,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f0f4ff' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        // 4. Tenure Trend
+        function renderTenureChart(emps) {
+            const ctx = document.getElementById('tenureChart').getContext('2d');
+            if(tenureChartInst) tenureChartInst.destroy();
+
+            const tenureData = dashboardSummary.tenure_risk || {};
+            const labels = Object.keys(tenureData);
+            const avgScores = Object.values(tenureData);
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(26,115,232,0.3)');
+            gradient.addColorStop(1, 'rgba(26,115,232,0)');
+
+            tenureChartInst = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Avg Risk Score',
+                            data: avgScores,
+                            borderColor: '#1a73e8',
+                            backgroundColor: gradient,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { type: 'linear', position: 'left', min: 0, max: 100, grid: { color: '#f0f4ff' } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)'
+                        }
+                    },
+                    animation: { duration: 2000, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        // 5. Top Risk Signals
+        function renderSignalsChart(emps) {
+            const ctx = document.getElementById('signalsChart').getContext('2d');
+            if(signalsChartInst) signalsChartInst.destroy();
+
+            let source = dashboardSummary.flag_prevalence || {};
+
+            const flagMap = {
+                flight_risk: "Flight Risk",
+                high_burnout: "Burnout Risk",
+                career_stagnation: "Career Stagnation",
+                compensation: "Compensation Gap",
+                low_engagement: "Low Engagement",
+                performance_drop: "Performance Drop",
+                absenteeism: "Absenteeism"
+            };
+
+            const sorted = Object.entries(source)
+                .map(([k,v]) => ({ label: flagMap[k] || k, val: v }))
+                .sort((a,b) => b.val - a.val);
+
+            const gradient = ctx.createLinearGradient(0, 0, 400, 0);
+            gradient.addColorStop(0, '#f59e0b');
+            gradient.addColorStop(1, '#ef4444');
+
+            signalsChartInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(s => s.label),
+                    datasets: [{
+                        data: sorted.map(s => s.val),
+                        backgroundColor: gradient,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { beginAtZero: true, max: 100, grid: { color: '#f0f4ff' } },
+                        y: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        function renderTopRiskTable(emps) {
+            const tbody = document.getElementById('top-risk-tbody');
+            
+            // Sort by score
+            const sorted = [...emps].sort((a,b) => (b.composite_score||0) - (a.composite_score||0)).slice(0, 5);
+            
+            tbody.innerHTML = sorted.map(e => {
+                const id = e.EmployeeNumber || e.employee_id || 0;
+                const score = Math.round(e.composite_score || 0);
+                const role = e.JobRole || e.job_role || 'Unknown';
+                const dept = e.Department || e.department || 'Unknown';
+                const flags = e.active_flags || [];
+                const primarySignal = flags.length ? flags[0].replace(/_flag/g, '').replace(/_/g, ' ') : 'None';
+                
+                let bgClass = 'bg-low';
+                if(e.risk_band === 'CRITICAL') bgClass = 'bg-critical';
+                else if(e.risk_band === 'HIGH') bgClass = 'bg-high';
+                else if(e.risk_band === 'MEDIUM') bgClass = 'bg-medium';
+
+                let actionsHtml = '';
+                const empJson = JSON.stringify(e).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                const safeObj = JSON.stringify(e).replace(/'/g, "&#39;");
+                if (e.risk_band === 'CRITICAL' || e.risk_band === 'HIGH') {
+                    actionsHtml += `<button class="btn-action btn-warning" onclick='openWarningModal(event, ${safeObj})' style="font-size: 11px; padding: 6px 12px; margin-bottom: 4px; width: 120px;"><i class="fa-solid fa-triangle-exclamation"></i> Warning</button>`;
+                    actionsHtml += `<button class="btn-action" onclick='openPipModal(event, ${safeObj})' style="font-size:11px;padding:6px 12px;margin-bottom:4px;width:120px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;border:none;"><i class="fa-solid fa-clipboard-list"></i> PIP</button>`;
+                }
+                if (e.risk_band === 'CRITICAL') {
+                    actionsHtml += `<button class="btn-action btn-danger" onclick='openTerminateModal(event, ${safeObj})' style="font-size: 11px; padding: 6px 12px; width: 120px;"><i class="fa-solid fa-user-slash"></i> Terminate</button>`;
+                }
+
+                return `
+                <tr onclick='openDetailPanel(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar" style="background: ${getRandomColor(id)}">${getAvatarInitials(role, id)}</div>
+                            <div style="font-weight: 600">EMP-${id}</div>
+                        </div>
+                    </td>
+                    <td>${dept}</td>
+                    <td>${role}</td>
+                    <td style="text-transform: capitalize">${primarySignal}</td>
+                    <td style="width: 200px">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                            <span>Score</span><span style="font-weight:700">${score}</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill ${bgClass}" style="width: ${score}%"></div></div>
+                    </td>
+                    <td><span class="band-badge ${e.risk_band}">${e.risk_band}</span></td>
+                    <td onclick="event.stopPropagation();">${actionsHtml}</td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        // ---------------- EMPLOYEES & ALERTS VIEWS ----------------
+        let empBandFilter = 'ALL';
+        let empSearch = '';
+
+        function setEmpBandFilter(el, band) {
+            document.querySelectorAll('#view-employees .filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            empBandFilter = band;
+            filterEmployeesTable();
+        }
+
+        function filterEmployeesTable() {
+            empSearch = document.getElementById('emp-search').value.toLowerCase();
+            const dept = document.getElementById('emp-dept-filter').value;
+            
+            const filtered = allEmployees.filter(e => {
+                const matchBand = empBandFilter === 'ALL' || e.risk_band === empBandFilter;
+                const matchDept = dept === 'All' || (e.Department || e.department) === dept;
+                const matchSearch = String(e.EmployeeNumber||e.employee_id).includes(empSearch) || 
+                                    String(e.JobRole||e.job_role).toLowerCase().includes(empSearch);
+                return matchBand && matchDept && matchSearch;
+            });
+            
+            renderEmployeesList(filtered);
+        }
+
+        function renderEmployees() {
+            renderEmployeesList(allEmployees);
+        }
+
+        function renderEmployeesList(emps) {
+            const tbody = document.getElementById('emp-tbody');
+            tbody.innerHTML = emps.map(e => {
+                const id = e.EmployeeNumber || e.employee_id || 0;
+                const score = Math.round(e.composite_score || 0);
+                const role = e.JobRole || e.job_role || 'Unknown';
+                const dept = e.Department || e.department || 'Unknown';
+                
+                let bgClass = 'bg-low';
+                if(e.risk_band === 'CRITICAL') bgClass = 'bg-critical';
+                else if(e.risk_band === 'HIGH') bgClass = 'bg-high';
+                else if(e.risk_band === 'MEDIUM') bgClass = 'bg-medium';
+
+                let actionsHtml = '';
+                const empJson = JSON.stringify(e).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                if (e.risk_band === 'CRITICAL' || e.risk_band === 'HIGH') {
+                    actionsHtml += `<button class="btn-action btn-warning" onclick="openWarningModal(event, '${empJson}')" style="font-size: 11px; padding: 6px 12px; margin-bottom: 4px; width: 120px;"><i class="fa-solid fa-triangle-exclamation"></i> Warning</button>`;
+                    actionsHtml += `<button class="btn-action" onclick="openPipModal(event, '${empJson}')" style="font-size:11px;padding:6px 12px;margin-bottom:4px;width:120px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;border:none;"><i class="fa-solid fa-clipboard-list"></i> PIP</button>`;
+                }
+                if (e.risk_band === 'CRITICAL') {
+                    actionsHtml += `<button class="btn-action btn-danger" onclick="openTerminateModal(event, '${empJson}')" style="font-size: 11px; padding: 6px 12px; width: 120px;"><i class="fa-solid fa-user-slash"></i> Terminate</button>`;
+                }
+
+                return `
+                <tr onclick='openDetailPanel(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar" style="background: ${getRandomColor(id)}">${getAvatarInitials(role, id)}</div>
+                            <div style="font-weight: 600">EMP-${id}</div>
+                        </div>
+                    </td>
+                    <td>${dept}</td>
+                    <td>${role}</td>
+                    <td style="width: 200px">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                            <span>Score</span><span style="font-weight:700">${score}</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill ${bgClass}" style="width: ${score}%"></div></div>
+                    </td>
+                    <td><span class="band-badge ${e.risk_band}">${e.risk_band}</span></td>
+                    <td onclick="event.stopPropagation();">${actionsHtml}</td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        function renderAlerts() {
+            const alertsGrid = document.getElementById('alerts-grid');
+            const filters = document.getElementById('alerts-filters');
+            
+            const highRisk = allEmployees.filter(e => e.risk_band === 'HIGH' || e.risk_band === 'CRITICAL');
+            const counts = { ALL: highRisk.length, CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+            allEmployees.forEach(e => { if(counts[e.risk_band] !== undefined) counts[e.risk_band]++; });
+
+            filters.innerHTML = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(b => `
+                <div class="filter-pill ${b==='ALL'?'active':''}" onclick="filterAlerts(this, '${b}')">
+                    ${b === 'ALL' ? 'All Alerts' : b} <span class="chip ${b==='CRITICAL'||b==='HIGH'?'red':(b==='MEDIUM'?'orange':'green')}">${counts[b]}</span>
+                </div>
+            `).join('');
+
+            renderAlertCards(highRisk);
+        }
+
+        let alertBand = 'ALL';
+        function filterAlerts(el, band) {
+            document.querySelectorAll('#alerts-filters .filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            alertBand = band;
+            const filtered = band === 'ALL' 
+                ? allEmployees.filter(e => e.risk_band === 'HIGH' || e.risk_band === 'CRITICAL')
+                : allEmployees.filter(e => e.risk_band === band);
+            renderAlertCards(filtered);
+        }
+
+        function renderAlertCards(emps) {
+            const grid = document.getElementById('alerts-grid');
+            grid.innerHTML = emps.map(e => {
+                const id = e.EmployeeNumber || e.employee_id || 0;
+                const score = Math.round(e.composite_score || 0);
+                const flags = (e.active_flags || []).map(f => `<span class="flag-box active">${f.replace(/_flag/g, '').replace(/_/g, ' ')}</span>`).join('');
+                const empJson = JSON.stringify(e).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                const safeObj = JSON.stringify(e).replace(/'/g, "&#39;");
+                const suggestion = (e.retention_suggestion || '').split('\n')[0] || 'Schedule a 1:1 check-in immediately.';
+
+                // Action buttons based on risk band
+                let actionBtns = '';
+                if (e.risk_band === 'HIGH' || e.risk_band === 'CRITICAL') {
+                    actionBtns += `<button class="btn-action btn-warning" onclick='openWarningModal(event, ${safeObj})' style="font-size:11px;padding:6px 10px;flex:1;justify-content:center;"><i class="fa-solid fa-triangle-exclamation"></i> Warning</button>`;
+                    actionBtns += `<button class="btn-action" onclick='openPipModal(event, ${safeObj})' style="font-size:11px;padding:6px 10px;flex:1;justify-content:center;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;border:none;box-shadow:0 4px 12px rgba(99,102,241,0.2);"><i class="fa-solid fa-clipboard-list"></i> PIP</button>`;
+                }
+                if (e.risk_band === 'CRITICAL') {
+                    actionBtns += `<button class="btn-action btn-danger" onclick='openTerminateModal(event, ${safeObj})' style="font-size:11px;padding:6px 10px;flex:1;justify-content:center;"><i class="fa-solid fa-user-slash"></i> Terminate</button>`;
+                }
+
+                return `
+                <div class="col-span-4 card alert-card ${e.risk_band}">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+                        <div class="user-cell">
+                            <div class="avatar" style="background:${getRandomColor(id)}">${getAvatarInitials(e.JobRole||e.job_role, id)}</div>
+                            <div>
+                                <div style="font-weight:700;font-size:15px;">EMP-${id}</div>
+                                <div style="font-size:12px;color:var(--text-muted);">${e.JobRole||e.job_role||''} · ${e.Department||e.department||''}</div>
+                            </div>
+                        </div>
+                        <div style="width:44px;height:44px;border-radius:50%;border:3px solid ${e.risk_band==='CRITICAL'?'var(--critical-high)':'var(--medium)'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;">${score}</div>
+                    </div>
+                    <div style="margin-bottom:10px;">${flags}</div>
+                    <div style="font-size:12px;color:var(--text-muted);background:#f8fafc;padding:8px 10px;border-left:3px solid var(--primary);border-radius:0 6px 6px 0;margin-bottom:12px;line-height:1.5;">
+                        <strong style="color:var(--primary);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">AI Suggestion</strong><br>${suggestion}
+                    </div>
+                    <div style="display:flex;gap:6px;margin-bottom:8px;" onclick="event.stopPropagation();">
+                        ${actionBtns}
+                    </div>
+                    <button class="btn-action btn-primary" onclick='openDetailPanel(${JSON.stringify(e).replace(/'/g,"&#39;")})' style="font-size:12px;padding:8px;width:100%;justify-content:center;"><i class="fa-solid fa-eye"></i> View Full Profile</button>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // ---------------- DETAIL PANEL ----------------
+        function openDetailPanel(e) {
+            document.getElementById('panel-overlay').classList.add('open');
+            document.getElementById('detail-panel').classList.add('open');
+            
+            const id = e.EmployeeNumber || e.employee_id || 0;
+            document.getElementById('panel-id').innerText = `Employee #${id}`;
+            document.getElementById('panel-role').innerText = `${e.JobRole||e.job_role} · ${e.Department||e.department}`;
+            
+            const bBadge = document.getElementById('panel-header-badge');
+            bBadge.innerText = e.risk_band + " RISK";
+            if(e.risk_band === 'CRITICAL') bBadge.style.color = C_CRIT;
+            else if(e.risk_band === 'HIGH') bBadge.style.color = C_HIGH;
+            else if(e.risk_band === 'MEDIUM') bBadge.style.color = C_MED;
+            else bBadge.style.color = C_LOW;
+
+            const flags = e.active_flags || [];
+
+            // Specific flags as requested
+            const requiredFlags = ['flight_risk_flag', 'compensation_flag', 'performance_drop_flag'];
+            const flagNames = {
+                'flight_risk_flag': 'Flight Risk',
+                'compensation_flag': 'Compensation Gap',
+                'performance_drop_flag': 'Performance Decline'
+            };
+            
+            document.getElementById('panel-flags').innerHTML = requiredFlags.map(f => {
+                const isActive = flags.includes(f);
+                if (isActive) {
+                    return `<span style="padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; background: rgba(239, 68, 68, 0.1); color: var(--critical-high); display: inline-flex; align-items: center; gap: 6px;"><i class="fa-solid fa-triangle-exclamation"></i> ${flagNames[f]}</span>`;
+                } else {
+                    return `<span style="padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; background: rgba(34, 197, 94, 0.1); color: var(--low); display: inline-flex; align-items: center; gap: 6px;"><i class="fa-solid fa-check-circle"></i> ${flagNames[f]}</span>`;
+                }
+            }).join('');
+
+            // Behaviors
+            const isAbsent = flags.includes('absenteeism_flag');
+            document.getElementById('b-absent').innerText = isAbsent ? 'High Risk' : 'Normal';
+            document.getElementById('b-absent').style.color = isAbsent ? 'var(--critical-high)' : 'var(--low)';
+            document.getElementById('b-absent-icon').className = isAbsent ? 'fa-solid fa-gauge-high' : 'fa-solid fa-gauge';
+            document.getElementById('b-absent-icon').style.color = isAbsent ? 'var(--critical-high)' : 'var(--low)';
+            
+            // Engagement: use actual engagement_score or flag
+            const isLowEngage = flags.includes('low_engagement_flag') || (e.engagement_score && e.engagement_score < 3);
+            const engageVal = e.engagement_score ? e.engagement_score + '/4' : (isLowEngage ? 'Low' : 'Average');
+            document.getElementById('b-engage').innerText = engageVal;
+            document.getElementById('b-engage').style.color = isLowEngage ? 'var(--critical-high)' : 'var(--low)';
+            document.getElementById('b-engage-icon').className = isLowEngage ? 'fa-solid fa-gauge-empty' : 'fa-solid fa-gauge-high';
+            document.getElementById('b-engage-icon').style.color = isLowEngage ? 'var(--critical-high)' : 'var(--low)';
+            
+            const isBurnout = flags.includes('high_burnout_flag');
+            document.getElementById('b-burnout').innerText = isBurnout ? 'High Risk' : 'Low';
+            document.getElementById('b-burnout').style.color = isBurnout ? 'var(--critical-high)' : 'var(--low)';
+            document.getElementById('b-burnout-icon').className = isBurnout ? 'fa-solid fa-gauge-high' : 'fa-solid fa-gauge';
+            document.getElementById('b-burnout-icon').style.color = isBurnout ? 'var(--critical-high)' : 'var(--low)';
+            
+            const isStagnant = flags.includes('career_stagnation_flag');
+            document.getElementById('b-career').innerText = isStagnant ? 'Stagnant' : 'Growing';
+            document.getElementById('b-career').style.color = isStagnant ? 'var(--critical-high)' : 'var(--low)';
+            document.getElementById('b-career-icon').className = isStagnant ? 'fa-solid fa-gauge-high' : 'fa-solid fa-gauge';
+            document.getElementById('b-career-icon').style.color = isStagnant ? 'var(--critical-high)' : 'var(--low)';
+
+            // Retention Suggestion
+            const suggBox = document.getElementById('panel-suggestion');
+            suggBox.innerHTML = '';
+            
+            // We use standard HTML rendering since prompt asked for clean text, we can split by number or newlines
+            let text = e.retention_suggestion || "1. Schedule a 1:1 check-in to discuss career goals.\n2. Review compensation alignment.";
+            // Format numbered list with HTML if it's plain text
+            if(text.includes('1.') || text.includes('1)')) {
+                text = text.replace(/(\d+[\.\)])/g, '<br><strong style="color: var(--primary);">$1</strong>');
+                if(text.startsWith('<br>')) text = text.substring(4);
+            }
+            
+            let i = 0;
+            // Provide a quick typewriter effect
+            function typeWriter() {
+                if (i < text.length) {
+                    let char = text.charAt(i);
+                    if (char === '<') {
+                        let tag = '';
+                        while (char !== '>' && i < text.length) {
+                            tag += char;
+                            i++;
+                            char = text.charAt(i);
+                        }
+                        tag += '>';
+                        suggBox.innerHTML += tag;
+                    } else {
+                        suggBox.innerHTML += char;
+                    }
+                    i++;
+                    setTimeout(typeWriter, 5); // Fast typing
+                }
+            }
+            typeWriter();
+        }
+
+        function closePanel() {
+            document.getElementById('panel-overlay').classList.remove('open');
+            document.getElementById('detail-panel').classList.remove('open');
+        }
+
+        function drawGauge(score, band) {
+            const ctx = document.getElementById('panelGauge').getContext('2d');
+            if(panelGaugeInst) panelGaugeInst.destroy();
+            
+            let color = C_LOW;
+            if(band === 'CRITICAL') color = C_CRIT;
+            else if(band === 'HIGH') color = C_HIGH;
+            else if(band === 'MEDIUM') color = C_MED;
+
+            panelGaugeInst = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [score, 100 - score],
+                        backgroundColor: [color, '#e2e8f0'],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '80%',
+                    plugins: { tooltip: { enabled: false } },
+                    animation: { duration: 1500, easing: 'easeOutBounce' }
+                }
+            });
+        }
+
+        // ---------------- ACTIONS ----------------
+        async function runAnalysis(btn) {
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
+            btn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/analyze?send_alerts=false`, { method: 'POST', headers: authHeaders() });
+                if(res.ok) {
+                    showToast('Analysis complete. Pipeline refreshed.', 'success');
+                    await fetchAllData();
+                    renderDashboard();
+                    updateRefreshTime();
+                } else {
+                    showToast('Analysis failed. Check pipeline.', 'error');
+                }
+            } catch (e) {
+                showToast('Network error.', 'error');
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Re-run Analysis';
+                btn.disabled = false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  HR ACTION MODALS — unified open/close/build/send
+        // ═══════════════════════════════════════════════════════
+
+        const hrModalState = {};  // stores generated letter + email per modal key
+
+        function openHrModal(key) {
+            document.getElementById(key+'-overlay').classList.add('open');
+            // Small timeout lets display:block render before adding open class
+            const modal = document.getElementById(key+'-modal');
+            modal.style.display = 'block';
+            requestAnimationFrame(() => { requestAnimationFrame(() => modal.classList.add('open')); });
+        }
+
+        function closeHrModal(key) {
+            const modal = document.getElementById(key+'-modal');
+            const overlay = document.getElementById(key+'-overlay');
+            modal.classList.remove('open');
+            overlay.classList.remove('open');
+            setTimeout(() => { modal.style.display = 'none'; }, 260);
+        }
+
+        function backToStep1(key) {
+            document.getElementById(key+'-step1').style.display = 'block';
+            document.getElementById(key+'-step2').style.display = 'none';
+        }
+
+        function switchOutputTab(key, tab) {
+            ['letter','email'].forEach(t => {
+                document.getElementById(`${key}-tab-${t}`).classList.toggle('active', t === tab);
+                document.getElementById(`${key}-output-${t}`).style.display = t === tab ? 'block' : 'none';
+            });
+        }
+
+        function openTerminateModal(eEvent, empJson) {
+            eEvent.stopPropagation();
+            const e = typeof empJson === 'string' ? JSON.parse(empJson) : empJson;
+            actionTargetEmpId = e.EmployeeNumber || e.employee_id;
+            actionTargetEmpInfo = e;
+            document.getElementById('term-emp-info').innerText =
+                `EMP-${actionTargetEmpId} · ${e.JobRole||e.job_role} · ${e.Department||e.department} · Score: ${Math.round(e.composite_score||0)}`;
+            document.getElementById('term-reason').value = '';
+            document.getElementById('term-auth').value = '';
+            document.getElementById('term-email').value = '';
+            document.getElementById('term-step1').style.display = 'block';
+            document.getElementById('term-step2').style.display = 'none';
+            switchOutputTab('term','letter');
+            openHrModal('term');
+        }
+
+        function buildTermination() {
+            const reason = document.getElementById('term-reason').value.trim();
+            const auth   = document.getElementById('term-auth').value.trim();
+            if (!reason || !auth) return showToast('Please fill in reason and authorizer name', 'error');
+
+            const emp   = actionTargetEmpInfo;
+            const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+            const role  = emp.JobRole || emp.job_role || 'N/A';
+            const dept  = emp.Department || emp.department || 'N/A';
+            const score = Math.round(emp.composite_score || 0);
+            const band  = emp.risk_band || 'HIGH';
+            const empId = actionTargetEmpId;
+
+            const letter = `TERMINATION LETTER
+──────────────────────────────────────────────────
+Date        : ${today}
+To          : Employee #${empId} — ${role}, ${dept}
+From        : HR Department
+Subject     : Termination of Employment
+──────────────────────────────────────────────────
+
+Dear Employee #${empId},
+
+This letter formally notifies you that your employment with the
+organization has been terminated effective ${today}.
+
+REASON FOR TERMINATION:
+  ${reason}
+
+RISK CONTEXT (Internal HR Record):
+  Attrition Risk Score : ${score}/100 (${band} RISK)
+  Department           : ${dept}
+  Role                 : ${role}
+
+Please ensure all company property, access cards, and credentials
+are returned to HR by end of business today. Your final settlement
+will be processed within 7 working days in accordance with company
+policy.
+
+For any queries regarding your final pay, benefits, or clearance,
+please contact HR directly.
+
+Authorized by : ${auth}
+Department    : Human Resources
+──────────────────────────────────────────────────
+This is an official HR document. Please retain for your records.`;
+
+            const emailBody = `Dear Employee #${empId},
+
+We regret to inform you that your employment with the organization has been terminated effective ${today}.
+
+Reason: ${reason}
+
+Please return all company property, access cards, and credentials to HR by end of business today. Your final settlement will be processed within 7 working days.
+
+For any queries, please contact HR directly.
+
+Regards,
+${auth}
+Human Resources Department`;
+
+            hrModalState['term'] = {
+                letter,
+                emailSubject: `[HR Notice] Termination of Employment — Employee #${empId}`,
+                emailBody,
+                emailTo: document.getElementById('term-email').value.trim()
+            };
+
+            document.getElementById('term-letter-text').value = letter;
+            document.getElementById('term-email-to').innerText    = hrModalState['term'].emailTo || '(no email entered)';
+            document.getElementById('term-email-subject').innerText = hrModalState['term'].emailSubject;
+            document.getElementById('term-email-body').innerText   = emailBody;
+
+            document.getElementById('term-step1').style.display = 'none';
+            document.getElementById('term-step2').style.display = 'block';
+            switchOutputTab('term','letter');
+            showToast('Termination letter ready — download or send', 'success');
+
+            // Best-effort backend log
+            fetch(`${API_BASE}/employees/${empId}/terminate`, {
+                method:'POST', headers: authHeaders(),
+                body: JSON.stringify({ reason, terminated_by: auth }),
+                signal: AbortSignal.timeout(3000)
+            }).catch(()=>{});
+
+            // Remove from in-memory list
+            allEmployees = allEmployees.filter(e => (e.EmployeeNumber||e.employee_id) !== empId);
+            renderDashboard(); renderEmployees(); renderAlerts();
+        }
+
+        // ── WARNING ─────────────────────────────────────────────
+        function openWarningModal(eEvent, empJson) {
+            eEvent.stopPropagation();
+            const e = typeof empJson === 'string' ? JSON.parse(empJson) : empJson;
+            actionTargetEmpId = e.EmployeeNumber || e.employee_id;
+            actionTargetEmpInfo = e;
+            document.getElementById('warn-emp-info').innerText =
+                `EMP-${actionTargetEmpId} · ${e.JobRole||e.job_role} · ${e.Department||e.department} · Score: ${Math.round(e.composite_score||0)}`;
+            document.getElementById('warn-reason').value = '';
+            document.getElementById('warn-auth').value = '';
+            document.getElementById('warn-email').value = '';
+            document.getElementById('warn-step1').style.display = 'block';
+            document.getElementById('warn-step2').style.display = 'none';
+            switchOutputTab('warn','letter');
+            openHrModal('warn');
+        }
+
+        function buildWarning() {
+            const auth   = document.getElementById('warn-auth').value.trim();
+            if (!auth) return showToast('Please enter the issuer name', 'error');
+            const reason = document.getElementById('warn-reason').value.trim();
+            const emp    = actionTargetEmpInfo;
+            const today  = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+            const role   = emp.JobRole || emp.job_role || 'N/A';
+            const dept   = emp.Department || emp.department || 'N/A';
+            const score  = Math.round(emp.composite_score || 0);
+            const band   = emp.risk_band || 'HIGH';
+            const empId  = actionTargetEmpId;
+
+            const flagMap = {
+                absenteeism_flag:'High Absenteeism / Burnout-Driven Absence',
+                low_engagement_flag:'Low Overall Engagement',
+                performance_drop_flag:'Below-Average Performance Rating',
+                career_stagnation_flag:'No Promotion in 4+ Years',
+                flight_risk_flag:'Has Worked at 4+ Companies (Flight Risk)',
+                compensation_flag:'Paid Below 25th Percentile for Role',
+                high_burnout_flag:'Overtime + Poor Work-Life Balance (High Burnout)',
+            };
+            const activeFlags = (emp.active_flags||[]).map(f => flagMap[f]||f.replace(/_/g,' ')).filter(Boolean);
+            const flagsText   = activeFlags.length ? activeFlags.map(f=>`  • ${f}`).join('\n') : '  • General disengagement signals detected';
+            const flagsShort  = activeFlags.length ? activeFlags.map(f=>`• ${f}`).join('\n') : '• General disengagement signals';
+
+            const letter = `WARNING LETTER
+──────────────────────────────────────────────────
+Date        : ${today}
+To          : Employee #${empId} — ${role}, ${dept}
+From        : HR Department
+Subject     : Performance & Engagement Concern — Formal Warning
+──────────────────────────────────────────────────
+
+Dear Employee #${empId},
+
+This letter serves as a formal notice that your current engagement
+and performance indicators have raised serious concerns requiring
+your immediate attention.
+
+DETECTED RISK SIGNALS:
+${flagsText}
+
+CURRENT HR STATUS:
+  Attrition Risk Score : ${score}/100 (${band} RISK)
+  Department           : ${dept}
+  Role                 : ${role}
+
+${reason ? `ADDITIONAL NOTES FROM HR:\n  ${reason}\n\n` : ''}You are required to schedule a meeting with your HR representative
+within 48 hours of receiving this letter to discuss a clear path
+forward and the support resources available to you.
+
+Failure to engage may result in further formal action, up to and
+including a Performance Improvement Plan (PIP) or termination.
+
+Issued by   : ${auth}
+Department  : Human Resources
+──────────────────────────────────────────────────
+This is an official HR document. Please retain for your records.`;
+
+            const emailBody = `Dear Employee #${empId},
+
+This email serves as a formal warning regarding performance and engagement concerns that have been identified.
+
+Risk Signals Detected:
+${flagsShort}
+${reason ? `\nAdditional Notes:\n${reason}\n` : ''}
+You are required to schedule a meeting with HR within 48 hours to discuss a path forward.
+
+Please treat this matter with the utmost seriousness.
+
+Issued by: ${auth}
+Department: Human Resources`;
+
+            hrModalState['warn'] = {
+                letter,
+                emailSubject: `[HR Warning] Performance & Engagement Concern — Employee #${empId}`,
+                emailBody,
+                emailTo: document.getElementById('warn-email').value.trim()
+            };
+
+            document.getElementById('warn-letter-text').value    = letter;
+            document.getElementById('warn-email-to').innerText   = hrModalState['warn'].emailTo || '(no email entered)';
+            document.getElementById('warn-email-subject').innerText = hrModalState['warn'].emailSubject;
+            document.getElementById('warn-email-body').innerText = emailBody;
+
+            document.getElementById('warn-step1').style.display = 'none';
+            document.getElementById('warn-step2').style.display = 'block';
+            switchOutputTab('warn','letter');
+            showToast('Warning letter ready — download or send', 'success');
+
+            // Best-effort backend
+            fetch(`${API_BASE}/employees/${empId}/warning`, {
+                method:'POST', headers: authHeaders(),
+                body: JSON.stringify({ reason, issued_by: auth }),
+                signal: AbortSignal.timeout(3000)
+            }).catch(()=>{});
+        }
+
+        // ── PIP ─────────────────────────────────────────────────
+        function openPipModal(eEvent, empJson) {
+            eEvent.stopPropagation();
+            const e = typeof empJson === 'string' ? JSON.parse(empJson) : empJson;
+            actionTargetEmpId = e.EmployeeNumber || e.employee_id;
+            actionTargetEmpInfo = e;
+            document.getElementById('pip-emp-info').innerText =
+                `EMP-${actionTargetEmpId} · ${e.JobRole||e.job_role} · ${e.Department||e.department} · Score: ${Math.round(e.composite_score||0)}`;
+            document.getElementById('pip-goals').value = '';
+            document.getElementById('pip-auth').value = '';
+            document.getElementById('pip-email').value = '';
+            document.getElementById('pip-step1').style.display = 'block';
+            document.getElementById('pip-step2').style.display = 'none';
+            switchOutputTab('pip','letter');
+            openHrModal('pip');
+        }
+
+        function buildPip() {
+            const auth   = document.getElementById('pip-auth').value.trim();
+            if (!auth) return showToast('Please enter your name', 'error');
+            const goals  = document.getElementById('pip-goals').value.trim();
+            const emp    = actionTargetEmpInfo;
+            const today  = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+            const role   = emp.JobRole || emp.job_role || 'N/A';
+            const dept   = emp.Department || emp.department || 'N/A';
+            const score  = Math.round(emp.composite_score || 0);
+            const band   = emp.risk_band || 'HIGH';
+            const tenure = emp.YearsAtCompany || emp.years_at_company || 0;
+            const empId  = actionTargetEmpId;
+
+            const letter = `PERFORMANCE IMPROVEMENT PLAN (PIP)
+──────────────────────────────────────────────────
+Date         : ${today}
+To           : Employee #${empId} — ${role}, ${dept}
+From         : HR Department
+Review Date  : 30 days from ${today}
+──────────────────────────────────────────────────
+
+Dear Employee #${empId},
+
+This Performance Improvement Plan (PIP) has been initiated to
+provide structured support and clear expectations to help you
+succeed in your current role at the organization.
+
+CURRENT STATUS:
+  Attrition Risk Score : ${score}/100 (${band} RISK)
+  Department           : ${dept}
+  Role                 : ${role}
+  Years at Company     : ${tenure}
+
+30-DAY IMPROVEMENT GOALS:
+  1. Attend weekly 1:1 sessions with your direct manager.
+  2. Demonstrate measurable improvement in engagement scores.
+  3. Maintain consistent and punctual attendance throughout.
+  4. Complete all outstanding training or development tasks.
+  5. Submit a personal development plan within the first week.
+
+${goals ? `MANAGER NOTES / SPECIFIC TARGETS:\n  ${goals}\n\n` : ''}REVIEW PROCESS:
+  Progress will be formally reviewed at the 30-day mark.
+  Successful completion will result in removal of the performance
+  flag from your HR record. Non-compliance may lead to further
+  disciplinary action, up to and including termination.
+
+SUPPORT AVAILABLE:
+  Please reach out to HR proactively at any point during this plan.
+  Career coaching, learning portals, and advisory sessions are
+  available to support your success.
+
+Acknowledged by HR : ${auth}
+Department         : Human Resources
+──────────────────────────────────────────────────
+This is an official HR document. Please retain for your records.`;
+
+            const emailBody = `Dear Employee #${empId},
+
+A Performance Improvement Plan (PIP) has been initiated for your role as ${role} in ${dept}.
+
+Review Date: 30 days from ${today}
+
+Key 30-Day Goals:
+1. Attend weekly 1:1 sessions with your direct manager
+2. Demonstrate measurable improvement in engagement
+3. Maintain consistent and punctual attendance
+4. Complete all outstanding training tasks
+5. Submit a personal development plan within week 1
+${goals ? `\nManager Notes:\n${goals}\n` : ''}
+Your progress will be reviewed at the 30-day mark. Please reach out to HR at any time for support.
+
+Issued by: ${auth}
+Department: Human Resources`;
+
+            hrModalState['pip'] = {
+                letter,
+                emailSubject: `[HR] Performance Improvement Plan Initiated — Employee #${empId}`,
+                emailBody,
+                emailTo: document.getElementById('pip-email').value.trim()
+            };
+
+            document.getElementById('pip-letter-text').value    = letter;
+            document.getElementById('pip-email-to').innerText   = hrModalState['pip'].emailTo || '(no email entered)';
+            document.getElementById('pip-email-subject').innerText = hrModalState['pip'].emailSubject;
+            document.getElementById('pip-email-body').innerText = emailBody;
+
+            document.getElementById('pip-step1').style.display = 'none';
+            document.getElementById('pip-step2').style.display = 'block';
+            switchOutputTab('pip','letter');
+            showToast('PIP letter ready — download or send', 'success');
+
+            fetch(`${API_BASE}/employees/${empId}/pip`, {
+                method:'POST', headers: authHeaders(),
+                body: JSON.stringify({ reason: goals, issued_by: auth }),
+                signal: AbortSignal.timeout(3000)
+            }).catch(()=>{});
+        }
+
+        // ── Shared download / email helpers ──────────────────────
+        function downloadLetter(key, typeName) {
+            const text = document.getElementById(`${key}-letter-text`).value;
+            const empId = actionTargetEmpId;
+            const blob = new Blob([text], { type:'text/plain' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url;
+            a.download = `${typeName}_Letter_EMP${empId}_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`${typeName} letter downloaded`, 'success');
+        }
+
+        function openMailto(key) {
+            const s = hrModalState[key] || {};
+            if (!s.emailTo) return showToast('No recipient email — please go back and enter one', 'error');
+            const mailto = `mailto:${encodeURIComponent(s.emailTo)}`
+                + `?subject=${encodeURIComponent(s.emailSubject||'')}`
+                + `&body=${encodeURIComponent(s.emailBody||'')}`;
+            window.open(mailto, '_blank');
+            showToast('Opening your mail app…', 'success');
+        }
+
+        function copyEmailBody(key) {
+            const s = hrModalState[key] || {};
+            if (!s.emailBody) return;
+            navigator.clipboard.writeText(s.emailBody).then(() => {
+                showToast('Email body copied to clipboard', 'success');
+            }).catch(() => {
+                // Fallback
+                const ta = document.createElement('textarea');
+                ta.value = s.emailBody;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('Email body copied to clipboard', 'success');
+            });
+        }
+
+        function openDataSourceModal() {
+            document.getElementById('ds-overlay').style.opacity = '1';
+            document.getElementById('ds-overlay').style.pointerEvents = 'all';
+            document.getElementById('ds-modal').style.display = 'block';
+        }
+
+        function closeModal(modalId, overlayId) {
+            document.getElementById(overlayId).style.opacity = '0';
+            document.getElementById(overlayId).style.pointerEvents = 'none';
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function switchDsTab(tab) {
+            if(tab === 'csv') {
+                document.getElementById('tab-csv').style.borderBottom = '2px solid var(--primary)';
+                document.getElementById('tab-csv').style.color = 'var(--primary)';
+                document.getElementById('tab-csv').style.fontWeight = '600';
+                document.getElementById('tab-sheets').style.borderBottom = 'none';
+                document.getElementById('tab-sheets').style.color = 'var(--text-muted)';
+                document.getElementById('tab-sheets').style.fontWeight = '500';
+                document.getElementById('ds-csv-content').style.display = 'block';
+                document.getElementById('ds-sheets-content').style.display = 'none';
+            } else {
+                document.getElementById('tab-sheets').style.borderBottom = '2px solid var(--primary)';
+                document.getElementById('tab-sheets').style.color = 'var(--primary)';
+                document.getElementById('tab-sheets').style.fontWeight = '600';
+                document.getElementById('tab-csv').style.borderBottom = 'none';
+                document.getElementById('tab-csv').style.color = 'var(--text-muted)';
+                document.getElementById('tab-csv').style.fontWeight = '500';
+                document.getElementById('ds-sheets-content').style.display = 'block';
+                document.getElementById('ds-csv-content').style.display = 'none';
+            }
+        }
+
+        async function submitDataSource(type) {
+            let formData = new FormData();
+            let url = `${API_BASE}/upload-datasource`;
+            if (type === 'csv') {
+                const file = document.getElementById('csv-upload').files[0];
+                if (!file) return showToast('Please select a CSV file', 'error');
+                formData.append('file', file);
+            } else {
+                const sheetUrl = document.getElementById('sheet-url').value;
+                if (!sheetUrl) return showToast('Please enter a Google Sheets URL', 'error');
+                url += `?sheet_url=${encodeURIComponent(sheetUrl)}`;
+            }
+
+            closeModal('ds-modal', 'ds-overlay');
+            showToast('Loading data source...', 'success');
+            
+            try {
+                const opts = { method: 'POST' };
+                if (type === 'csv') opts.body = formData;
+                const res = await fetch(url, opts);
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(`Data source updated \u2014 ${data.employees_loaded} employees loaded`, 'success');
+                    let sourceName = type === 'csv' ? document.getElementById('csv-upload').files[0].name : "Google Sheets";
+                    document.getElementById('ds-badge').innerHTML = sourceName + ' <span class="chip green">Connected</span>';
+                    await fetchAllData();
+                    renderDashboard();
+                    renderEmployees();
+                    renderAlerts();
+                    updateRefreshTime();
+                } else {
+                    showToast(data.detail || 'Failed to load data', 'error');
+                }
+            } catch (e) {
+                showToast('Network error while updating data source', 'error');
+            }
+        }
+
+    </script>
+</body>
+</html>

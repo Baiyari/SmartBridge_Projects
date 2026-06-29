@@ -1,0 +1,932 @@
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let donutChartInstance = null;
+        let pieChartInstance = null;
+        let barChartInstance = null;
+        let trendChartInstance = null;
+        
+        let allEmployeesData = [];
+        let filteredEmployees = [];
+        let activeFilter = 'ALL';
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 10;
+
+        const riskColors = {
+            'LOW': '#00c853',
+            'MEDIUM': '#ffab00',
+            'HIGH': '#f97316',
+            'CRITICAL': '#d50000'
+        };
+
+        const flagHRNames = {
+            'absenteeism_flag': 'Absenteeism',
+            'low_engagement_flag': 'Low Engagement',
+            'performance_drop_flag': 'Performance Decline',
+            'career_stagnation_flag': 'Career Stagnation',
+            'flight_risk_flag': 'Flight Risk',
+            'compensation_flag': 'Compensation Gap',
+            'high_burnout_flag': 'Burnout Risk'
+        };
+
+        // Initialize current time for Last Refreshed
+        function updateRefreshTime() {
+            const now = new Date();
+            const options = { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById('last-refreshed-time').innerText = now.toLocaleDateString('en-GB', options).replace(',', '');
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('system-toast');
+            if (!toast) return;
+            const msgEl = document.getElementById('toast-message');
+            const iconEl = toast.querySelector('.toast-icon');
+            
+            toast.className = 'toast-notification ' + type;
+            msgEl.innerText = message;
+            
+            if (type === 'success') {
+                iconEl.className = 'fa-solid fa-circle-check toast-icon';
+                iconEl.style.color = 'var(--risk-low)';
+            } else {
+                iconEl.className = 'fa-solid fa-circle-xmark toast-icon';
+                iconEl.style.color = 'var(--risk-critical)';
+            }
+            
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        async function runAnalysis() {
+            const btn = document.getElementById('run-analysis-btn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Running...';
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch(API_BASE + '/analyze?send_alerts=false', { method: 'POST' });
+                if (!res.ok) throw new Error('API Error');
+                const data = await res.json();
+                
+                showToast('Analysis complete · Data refreshed', 'success');
+                updateRefreshTime();
+                
+                // Refresh data
+                await loadDashboard();
+                await loadEmployees();
+                await loadAlerts();
+            } catch (err) {
+                console.error(err);
+                showToast('Pipeline error · Check backend', 'error');
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupNavigation();
+            setupSearch();
+            setupDetailPanel();
+            updateRefreshTime();
+            
+            await loadDashboard();
+            await loadEmployees();
+            await loadAlerts();
+        });
+
+        // ---------------- API CALLS ----------------
+        async function fetchAPI(endpoint) {
+            try {
+                const res = await fetch(API_BASE + endpoint);
+                if (!res.ok) throw new Error('API Error: ' + res.status);
+                return await res.json();
+            } catch (err) {
+                console.error(err);
+                return null;
+            }
+        }
+
+        // ---------------- NAVIGATION ----------------
+        function setupNavigation() {
+            const items = document.querySelectorAll('.nav-item');
+            const views = document.querySelectorAll('.view-container');
+
+            items.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    createRipple(e, item);
+
+                    items.forEach(i => i.classList.remove('active'));
+                    views.forEach(v => v.classList.remove('active'));
+                    
+                    item.classList.add('active');
+                    document.getElementById(item.dataset.target).classList.add('active');
+                });
+            });
+
+            // Filters
+            const chips = document.querySelectorAll('.chip');
+            chips.forEach(chip => {
+                if (chip.classList.contains('active-toggle')) return; // exclude flags chips if any
+                chip.addEventListener('click', () => {
+                    if (chip.parentElement.classList.contains('filters-section')) {
+                        chips.forEach(c => c.classList.remove('active'));
+                        chip.classList.add('active');
+                        activeFilter = chip.dataset.filter;
+                        currentPage = 1;
+                        renderEmployeesTable();
+                    }
+                });
+            });
+        }
+
+        function createRipple(e, element) {
+            const circle = document.createElement('span');
+            const diameter = Math.max(element.clientWidth, element.clientHeight);
+            const radius = diameter / 2;
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${e.clientX - element.offsetLeft - radius}px`;
+            circle.style.top = `${e.clientY - element.offsetTop - radius}px`;
+            circle.classList.add('ripple');
+            const ripple = element.querySelector('.ripple');
+            if (ripple) ripple.remove();
+            element.appendChild(circle);
+        }
+
+        // ---------------- UTILS ----------------
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = Math.floor(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function getAvatarInitials(role, id) {
+            if (role) return role.substring(0, 2).toUpperCase();
+            return id.toString().substring(0, 2);
+        }
+        
+        function getRandomColor(id) {
+            const colors = ['#1a73e8', '#9c27b0', '#e91e63', '#3f51b5', '#00bcd4', '#009688', '#f97316', '#795548'];
+            return colors[id % colors.length];
+        }
+
+        async function loadTrendChart() {
+            const data = await fetchAPI('/employees?limit=1470&offset=0');
+            if (!data || !data.employees) return;
+            
+            const bands = {
+                "0-1 yrs":  e => e.years_at_company <= 1,
+                "2-3 yrs":  e => e.years_at_company >= 2 && e.years_at_company <= 3,
+                "4-5 yrs":  e => e.years_at_company >= 4 && e.years_at_company <= 5,
+                "6-8 yrs":  e => e.years_at_company >= 6 && e.years_at_company <= 8,
+                "9-12 yrs": e => e.years_at_company >= 9 && e.years_at_company <= 12,
+                "13+ yrs":  e => e.years_at_company >= 13,
+            };
+            
+            const bandKeys = Object.keys(bands);
+            const groupedEmps = {};
+            bandKeys.forEach(k => groupedEmps[k] = []);
+            
+            data.employees.forEach(emp => {
+                for (const [key, condition] of Object.entries(bands)) {
+                    if (condition(emp)) {
+                        groupedEmps[key].push(emp);
+                        break;
+                    }
+                }
+            });
+            
+            const labels = [];
+            const avgScores = [];
+            const highPct = [];
+            const counts = [];
+            
+            bandKeys.forEach(label => {
+                const emps = groupedEmps[label];
+                labels.push(label);
+                counts.push(emps.length);
+                if (emps.length === 0) {
+                    avgScores.push(0);
+                    highPct.push(0);
+                    return;
+                }
+                
+                let totalScore = 0;
+                let highCritCount = 0;
+                
+                emps.forEach(e => {
+                    totalScore += (e.composite_score || 0);
+                    if (e.risk_band === 'HIGH' || e.risk_band === 'CRITICAL') {
+                        highCritCount++;
+                    }
+                });
+                
+                avgScores.push(Math.round(totalScore / emps.length));
+                highPct.push(Math.round((highCritCount / emps.length) * 100));
+            });
+            
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            if (trendChartInstance) trendChartInstance.destroy();
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(26,115,232,0.25)');
+            gradient.addColorStop(1, 'rgba(26,115,232,0)');
+            
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Avg Risk Score',
+                            data: avgScores,
+                            borderColor: '#1a73e8',
+                            backgroundColor: gradient,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#1a73e8',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '% High/Critical',
+                            data: highPct,
+                            borderColor: '#d50000',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            pointBackgroundColor: '#d50000',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 6,
+                                font: { family: 'Inter', size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { size: 13, family: 'Inter' },
+                            bodyFont: { size: 13, family: 'Inter' },
+                            padding: 12,
+                            callbacks: {
+                                title: function(context) {
+                                    return 'Tenure: ' + context[0].label;
+                                },
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y + (context.datasetIndex === 1 ? '%' : '');
+                                    }
+                                    return label;
+                                },
+                                afterBody: function(context) {
+                                    return 'Employees in group: ' + counts[context[0].dataIndex];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: '#f0f4ff',
+                                drawBorder: false
+                            },
+                            ticks: { font: { family: 'Inter' } }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Avg Risk Score',
+                                color: '#64748b',
+                                font: { size: 12, family: 'Inter', weight: '600' }
+                            },
+                            grid: {
+                                color: '#f0f4ff',
+                                drawBorder: false
+                            },
+                            ticks: { font: { family: 'Inter' } }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: '% High/Critical',
+                                color: '#64748b',
+                                font: { size: 12, family: 'Inter', weight: '600' }
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                                drawBorder: false
+                            },
+                            ticks: { font: { family: 'Inter' } }
+                        }
+                    },
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        // ---------------- DASHBOARD LOAD ----------------
+        async function loadDashboard() {
+            const data = await fetchAPI('/dashboard-summary');
+            if (!data) return;
+
+            // Stats
+            animateValue(document.getElementById('stat-total'), 0, data.total_employees, 1000);
+            animateValue(document.getElementById('stat-avg-score'), 0, Math.round(data.avg_risk_score), 1000);
+            animateValue(document.getElementById('stat-high-crit'), 0, data.high_critical_count, 1000);
+            animateValue(document.getElementById('stat-alerts'), 0, data.high_critical_count, 1000);
+            animateValue(document.getElementById('live-count'), 0, data.total_employees, 1000);
+
+            // Donut Chart
+            const ctxDonut = document.getElementById('donutChart').getContext('2d');
+            const dData = data.risk_distribution;
+            
+            if (donutChartInstance) donutChartInstance.destroy();
+            donutChartInstance = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+                    datasets: [{
+                        data: [dData.LOW, dData.MEDIUM, dData.HIGH, dData.CRITICAL],
+                        backgroundColor: [
+                            riskColors.LOW, riskColors.MEDIUM, riskColors.HIGH, riskColors.CRITICAL
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: { 
+                            position: 'bottom', 
+                            labels: { 
+                                usePointStyle: true, 
+                                padding: 20,
+                                font: { family: 'Inter', size: 12, weight: '500' },
+                                generateLabels: (chart) => {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        return data.labels.map((label, i) => {
+                                            const meta = chart.getDatasetMeta(0);
+                                            const style = meta.controller.getStyle(i);
+                                            const val = data.datasets[0].data[i];
+                                            const perc = Math.round((val / chart.config.data.total) * 100) || 0;
+                                            return {
+                                                text: `${label} (${val} - ${perc}%)`,
+                                                fillStyle: style.backgroundColor,
+                                                strokeStyle: style.borderColor,
+                                                lineWidth: style.borderWidth,
+                                                hidden: isNaN(data.datasets[0].data[i]) || meta.data[i].hidden,
+                                                index: i
+                                            };
+                                        });
+                                    }
+                                    return [];
+                                }
+                            } 
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Inter' },
+                            bodyFont: { family: 'Inter' },
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw;
+                                    let perc = Math.round((val / data.total_employees) * 100);
+                                    return ` Count: ${val} (${perc}%)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: { animateScale: true, animateRotate: true, duration: 1500 }
+                }
+            });
+            donutChartInstance.config.data.total = data.total_employees;
+            donutChartInstance.update();
+
+            // Pie Chart (Top Risk Signals)
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            const flags = Object.entries(data.flag_prevalence)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
+            
+            const pieLabels = flags.map(f => flagHRNames[f[0]] || f[0]);
+            const pieData = flags.map(f => f[1]);
+            const pieColors = ['#f97316', '#3b82f6', '#8b5cf6'];
+
+            if (pieChartInstance) pieChartInstance.destroy();
+            pieChartInstance = new Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: pieLabels,
+                    datasets: [{
+                        data: pieData,
+                        backgroundColor: pieColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { usePointStyle: true, padding: 15, font: {family: 'Inter'} } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Inter' },
+                            bodyFont: { family: 'Inter' },
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    },
+                    animation: { animateScale: true, duration: 1500 }
+                }
+            });
+
+            // Department Bar Chart
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            const deptLabels = Object.keys(data.department_risk);
+            const deptData = Object.values(data.department_risk);
+
+            if (barChartInstance) barChartInstance.destroy();
+            
+            const customDataLabels = {
+                id: 'customDataLabels',
+                afterDatasetsDraw(chart, args, options) {
+                    const { ctx, data, chartArea: { left, right, top, bottom }, scales: { x, y } } = chart;
+                    ctx.save();
+                    ctx.font = 'bolder 12px Inter';
+                    ctx.fillStyle = '#64748b';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    
+                    chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
+                        const val = data.datasets[0].data[index];
+                        ctx.fillText(` ${val}%`, datapoint.x + 5, datapoint.y);
+                    });
+                    ctx.restore();
+                }
+            };
+
+            barChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: deptLabels,
+                    datasets: [{
+                        label: 'Attrition Risk',
+                        data: deptData,
+                        backgroundColor: function(context) {
+                            const val = context.raw;
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return;
+                            
+                            let r, g, b;
+                            if (val < 50) {
+                                const pct = val / 50;
+                                r = Math.round(0 + (255 * pct));
+                                g = Math.round(200);
+                                b = Math.round(83 - (83 * pct));
+                            } else {
+                                const pct = (val - 50) / 50;
+                                r = Math.round(255 - (42 * pct));
+                                g = Math.round(200 - (200 * pct));
+                                b = 0;
+                            }
+                            const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+                            gradient.addColorStop(0, '#f1f5f9');
+                            gradient.addColorStop(1, `rgb(${r}, ${g}, ${b})`);
+                            return gradient;
+                        },
+                        borderRadius: 4,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 40 } },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Inter' },
+                            bodyFont: { family: 'Inter' },
+                            callbacks: {
+                                label: function(context) {
+                                    return `Department: ${context.label} | Attrition Risk: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: '#f1f5f9' }, max: 100, title: {display: true, text: 'Risk Percentage', font: {family: 'Inter', size: 12, weight: '600'}, color: '#64748b'}, ticks: {font: {family: 'Inter'}} },
+                        y: { grid: { display: false }, ticks: {font: {family: 'Inter'}} }
+                    },
+                    animation: { delay: (context) => context.dataIndex * 100, duration: 1000 }
+                },
+                plugins: [customDataLabels]
+            });
+
+            await loadTrendChart();
+
+            // Top At-Risk Table
+            const tbody = document.getElementById('top-risk-table');
+            tbody.innerHTML = '';
+            
+            // Fetch detailed info for these top employees to get their primary signal
+            const detailedEmployees = await Promise.all(
+                data.top_at_risk.map(emp => fetchAPI(`/employees/${emp.EmployeeNumber}`))
+            );
+
+            data.top_at_risk.forEach((emp, i) => {
+                const fullData = detailedEmployees[i] || {};
+                const activeFlags = fullData.active_flags || {};
+                
+                let primarySignal = "Multiple Signals";
+                let topFlags = Object.entries(activeFlags).filter(f => f[1]).map(f => flagHRNames[f[0]] || f[0]);
+                if (topFlags.length === 1) primarySignal = topFlags[0];
+                else if (topFlags.length > 1) primarySignal = topFlags[0]; // Just take first as primary
+                else primarySignal = "Baseline Risk";
+
+                const tr = document.createElement('tr');
+                tr.onclick = () => openDetailPanel(fullData.employee_id ? fullData : emp);
+                tr.innerHTML = `
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar" style="background: ${getRandomColor(emp.EmployeeNumber)}">${getAvatarInitials(emp.JobRole, emp.EmployeeNumber)}</div>
+                            <div>
+                                <div style="font-weight: 600; color: #0f172a;">EMP-${emp.EmployeeNumber}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${emp.Department}</td>
+                    <td>${emp.JobRole}</td>
+                    <td><span style="font-weight: 500; color: #475569;"><i class="fa-solid fa-circle-exclamation" style="color: var(--risk-high); margin-right: 4px; font-size: 12px;"></i> ${primarySignal}</span></td>
+                    <td>
+                        <div style="font-weight: 600; margin-bottom: 4px; font-size: 13px;">${Math.round(emp.composite_score)} / 100</div>
+                        <div class="progress-wrapper">
+                            <div class="progress-fill ${emp.risk_band}" style="width: ${emp.composite_score}%;"></div>
+                        </div>
+                    </td>
+                    <td><span class="badge ${emp.risk_band}">${emp.risk_band}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ---------------- EMPLOYEES LOAD ----------------
+        async function loadEmployees() {
+            const data = await fetchAPI('/employees?limit=1000');
+            if (!data) return;
+            allEmployeesData = data.employees;
+            renderEmployeesTable();
+        }
+
+        function renderEmployeesTable() {
+            if (activeFilter === 'ALL') {
+                filteredEmployees = allEmployeesData;
+            } else {
+                filteredEmployees = allEmployeesData.filter(e => e.risk_band === activeFilter);
+            }
+
+            const tbody = document.getElementById('all-employees-table');
+            tbody.innerHTML = '';
+
+            const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIdx = startIdx + ITEMS_PER_PAGE;
+            const pageData = filteredEmployees.slice(startIdx, endIdx);
+
+            pageData.forEach(emp => {
+                const tr = document.createElement('tr');
+                tr.onclick = async () => {
+                    const fullData = await fetchAPI(`/employees/${emp.EmployeeNumber}`);
+                    openDetailPanel(fullData || emp);
+                };
+                tr.innerHTML = `
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar" style="background: ${getRandomColor(emp.EmployeeNumber)}">${getAvatarInitials(emp.JobRole, emp.EmployeeNumber)}</div>
+                            <span style="font-weight: 600; color: #0f172a;">EMP-${emp.EmployeeNumber}</span>
+                        </div>
+                    </td>
+                    <td>${emp.Department}</td>
+                    <td>${emp.JobRole}</td>
+                    <td>${emp.Age}</td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-weight:600; width: 30px;">${Math.round(emp.composite_score)}</span>
+                            <div class="progress-wrapper" style="width: 100px; margin:0;">
+                                <div class="progress-fill ${emp.risk_band}" style="width: ${emp.composite_score}%;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="badge ${emp.risk_band}">${emp.risk_band}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const controls = document.getElementById('pagination-controls');
+            controls.innerHTML = '';
+            
+            const totalPages = Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE);
+            if (totalPages <= 1) return;
+
+            // Prev
+            const prev = document.createElement('button');
+            prev.className = 'page-btn';
+            prev.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+            prev.disabled = currentPage === 1;
+            prev.onclick = () => { if (currentPage > 1) { currentPage--; renderEmployeesTable(); } };
+            controls.appendChild(prev);
+
+            let start = Math.max(1, currentPage - 2);
+            let end = Math.min(totalPages, start + 4);
+            
+            for (let i = start; i <= end; i++) {
+                const btn = document.createElement('button');
+                btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                btn.innerText = i;
+                btn.onclick = () => { currentPage = i; renderEmployeesTable(); };
+                controls.appendChild(btn);
+            }
+
+            // Next
+            const next = document.createElement('button');
+            next.className = 'page-btn';
+            next.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+            next.disabled = currentPage === totalPages;
+            next.onclick = () => { if (currentPage < totalPages) { currentPage++; renderEmployeesTable(); } };
+            controls.appendChild(next);
+        }
+
+        // ---------------- ALERTS LOAD ----------------
+        async function loadAlerts() {
+            const data = await fetchAPI('/alerts');
+            if (!data) return;
+
+            const grid = document.getElementById('alerts-grid');
+            grid.innerHTML = '';
+            
+            // Get detailed info for alerts to show top 3 flags
+            const detailedEmployees = await Promise.all(
+                data.employees.slice(0, 20).map(emp => fetchAPI(`/employees/${emp.EmployeeNumber}`))
+            );
+
+            data.employees.slice(0, 20).forEach((emp, i) => {
+                const fullData = detailedEmployees[i] || {};
+                const activeFlags = fullData.active_flags || {};
+                
+                let topFlags = Object.entries(activeFlags).filter(f => f[1]).map(f => flagHRNames[f[0]] || f[0]).slice(0, 3);
+                let flagsHtml = topFlags.map(f => `<div class="alert-flag-item"><i class="fa-solid fa-circle-exclamation"></i> ${f}</div>`).join('');
+                if (topFlags.length === 0) flagsHtml = `<div class="alert-flag-item"><i class="fa-solid fa-info-circle" style="color:#64748b;"></i> Model Based Risk</div>`;
+
+                const card = document.createElement('div');
+                card.className = `alert-card ${emp.risk_band}`;
+                
+                let pulse = emp.risk_band === 'CRITICAL' ? '<div class="alert-pulse"></div>' : '';
+                
+                card.innerHTML = `
+                    ${pulse}
+                    <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+                        <span class="badge ${emp.risk_band}">${emp.risk_band} RISK</span>
+                        <span class="badge PENDING"><i class="fa-regular fa-clock"></i> HR Action: Pending</span>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="font-size: 18px; font-weight: 700; color: #0f172a;">EMP-${emp.EmployeeNumber}</h3>
+                        <span style="font-weight:700; font-size:16px; color: var(--risk-${emp.risk_band.toLowerCase()});">Score: ${Math.round(emp.composite_score)}</span>
+                    </div>
+                    
+                    <div style="color: #64748b; font-size: 14px; margin-top: 4px;">${emp.JobRole} • ${emp.Department}</div>
+                    
+                    <div class="alert-flags">
+                        ${flagsHtml}
+                    </div>
+
+                    <div class="alert-details-container">
+                        <div class="suggestion-box">
+                            ${emp.retention_suggestion || "Awaiting detailed suggestion."}
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="action-btn blue" onclick="event.stopPropagation();" style="padding: 8px 12px; font-size:12px; flex:1;"><i class="fa-regular fa-calendar-check"></i> 1:1</button>
+                            <button class="action-btn amber" onclick="event.stopPropagation();" style="padding: 8px 12px; font-size:12px; flex:1;"><i class="fa-solid fa-trophy"></i> Recog.</button>
+                        </div>
+                    </div>
+                `;
+                
+                card.onclick = () => {
+                    card.classList.toggle('expanded');
+                };
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // ---------------- SEARCH ----------------
+        function setupSearch() {
+            const input = document.getElementById('global-search');
+            const dropdown = document.getElementById('search-dropdown');
+            
+            input.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                if (query.length < 2) {
+                    dropdown.classList.remove('active');
+                    return;
+                }
+
+                const results = allEmployeesData.filter(emp => 
+                    emp.EmployeeNumber.toString().includes(query) || 
+                    emp.JobRole.toLowerCase().includes(query) ||
+                    emp.Department.toLowerCase().includes(query)
+                ).slice(0, 5);
+
+                dropdown.innerHTML = '';
+                
+                if (results.length === 0) {
+                    dropdown.innerHTML = '<div style="padding: 16px; text-align:center; color:#64748b;">No results found</div>';
+                } else {
+                    results.forEach(emp => {
+                        const item = document.createElement('div');
+                        item.className = 'search-result-item';
+                        item.onclick = async () => {
+                            dropdown.classList.remove('active');
+                            input.value = '';
+                            const fullData = await fetchAPI(`/employees/${emp.EmployeeNumber}`);
+                            openDetailPanel(fullData || emp);
+                        };
+                        item.innerHTML = `
+                            <div class="avatar" style="background: ${getRandomColor(emp.EmployeeNumber)}; width: 32px; height: 32px; font-size: 12px;">
+                                ${getAvatarInitials(emp.JobRole, emp.EmployeeNumber)}
+                            </div>
+                            <div style="flex-grow: 1;">
+                                <div style="font-weight: 600; font-size: 14px;">EMP-${emp.EmployeeNumber}</div>
+                                <div style="font-size: 12px; color: #64748b;">${emp.JobRole}</div>
+                            </div>
+                            <span class="badge ${emp.risk_band}" style="font-size: 10px;">${emp.risk_band}</span>
+                        `;
+                        dropdown.appendChild(item);
+                    });
+                }
+                
+                dropdown.classList.add('active');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.header-search')) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        }
+
+        // ---------------- DETAIL PANEL ----------------
+        function setupDetailPanel() {
+            document.getElementById('close-panel').onclick = closePanel;
+            document.getElementById('panel-overlay').onclick = closePanel;
+        }
+
+        function closePanel() {
+            document.getElementById('detail-panel').classList.remove('open');
+            document.getElementById('panel-overlay').classList.remove('open');
+        }
+
+        function openDetailPanel(fullData) {
+            const panel = document.getElementById('detail-panel');
+            const overlay = document.getElementById('panel-overlay');
+            
+            // Header
+            document.getElementById('panel-name').innerText = `Employee ${fullData.employee_id || fullData.EmployeeNumber}`;
+            document.getElementById('panel-role').innerText = fullData.job_role || fullData.JobRole;
+            
+            const badge = document.getElementById('panel-band-badge');
+            badge.innerText = fullData.risk_band + ' RISK';
+            badge.className = `badge ${fullData.risk_band}`;
+            
+            // Behavior Grid Setup
+            const flags = fullData.active_flags || {};
+            
+            const setCardStatus = (cardId, hasRisk, riskText, normalText) => {
+                const card = document.getElementById(cardId);
+                const statusEl = card.querySelector('.behavior-status');
+                if (hasRisk) {
+                    statusEl.innerText = riskText;
+                    statusEl.className = 'behavior-status status-red';
+                } else {
+                    statusEl.innerText = normalText;
+                    statusEl.className = 'behavior-status status-green';
+                }
+            };
+
+            setCardStatus('card-absenteeism', flags.absenteeism_flag, 'Detected', 'Normal');
+            setCardStatus('card-engagement', flags.low_engagement_flag, 'Low', 'Healthy');
+            setCardStatus('card-burnout', flags.high_burnout_flag, 'High Risk', 'Normal');
+            setCardStatus('card-stagnation', flags.career_stagnation_flag, 'Stagnant', 'Growing');
+
+            // Flag Chips
+            const chipsContainer = document.getElementById('panel-flag-chips');
+            chipsContainer.innerHTML = '';
+            
+            const minorFlags = {
+                'flight_risk_flag': 'Flight Risk',
+                'compensation_flag': 'Compensation Gap',
+                'performance_drop_flag': 'Performance Decline'
+            };
+
+            for (const [key, name] of Object.entries(minorFlags)) {
+                if (flags[key] !== undefined) {
+                    const isDetected = flags[key];
+                    const cls = isDetected ? 'detected' : 'clear';
+                    const icon = isDetected ? 'fa-triangle-exclamation' : 'fa-check';
+                    chipsContainer.innerHTML += `<div class="flag-chip ${cls}"><i class="fa-solid ${icon}"></i> ${name}</div>`;
+                }
+            }
+
+            // Suggestion
+            const suggBox = document.getElementById('panel-suggestion');
+            typewriterEffect(suggBox, fullData.retention_suggestion || "No suggestion available for this profile.");
+
+            panel.classList.add('open');
+            overlay.classList.add('open');
+        }
+
+        function typewriterEffect(element, text) {
+            element.innerHTML = '';
+            let i = 0;
+            element.style.minHeight = '60px'; // Prevent layout jump
+            
+            function typeWriter() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, 10);
+                }
+            }
+            typeWriter();
+        }
+    </script>
+    <div class="toast-notification" id="system-toast">
+        <i class="fa-solid fa-circle-check toast-icon" style="font-size: 18px;"></i>
+        <div class="toast-message" id="toast-message">Notification</div>
+    </div>
+</body>
+</html>

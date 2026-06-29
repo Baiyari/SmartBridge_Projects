@@ -1,0 +1,757 @@
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        let allEmployees = [];
+        let dashboardSummary = null;
+        let deptChartInst, genderMaleChartInst, genderFemaleChartInst, ageChartInst, tenureChartInst, signalsChartInst, panelGaugeInst;
+
+        // Colors
+        const C_CRIT = '#ef4444';
+        const C_HIGH = '#ef4444';
+        const C_MED = '#f59e0b';
+        const C_LOW = '#22c55e';
+        const C_MALE = '#3b82f6';
+        const C_FEMALE = '#ec4899';
+        const C_RND = '#6366f1';
+        const C_SALES = '#f59e0b';
+        const C_HR = '#10b981';
+
+        // ---------------- INITIALIZATION ----------------
+        document.addEventListener('DOMContentLoaded', async () => {
+            updateRefreshTime();
+            await fetchAllData();
+            renderDashboard();
+            renderEmployees();
+            renderAlerts();
+        });
+
+        async function fetchAllData() {
+            try {
+                const [dashRes, empRes] = await Promise.all([
+                    fetch(`${API_BASE}/dashboard-summary`),
+                    fetch(`${API_BASE}/employees?limit=1470`)
+                ]);
+                
+                if(dashRes.ok) dashboardSummary = await dashRes.json();
+                if(empRes.ok) {
+                    const empData = await empRes.json();
+                    allEmployees = empData.employees || [];
+                }
+            } catch (e) {
+                showToast('Failed to fetch data from backend', 'error');
+                console.error(e);
+            }
+        }
+
+        // ---------------- UTILS ----------------
+        function updateRefreshTime() {
+            const now = new Date();
+            document.getElementById('status-time').innerHTML = 
+                `${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} <span class="chip green">Live</span>`;
+        }
+
+        function showToast(msg, type='success') {
+            const t = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-msg').innerText = msg;
+            
+            t.className = 'toast ' + type + ' show';
+            icon.className = type === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-exclamation';
+            icon.style.color = type === 'success' ? 'var(--low)' : 'var(--critical-high)';
+            
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById('view-' + tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            // Re-animate if dashboard
+            if(tabId === 'dashboard' && dashboardSummary) {
+                animateNumbers();
+            }
+        }
+
+        function animateValue(obj, start, end, duration, formatFn = (v) => Math.floor(v)) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = formatFn(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function getAvatarInitials(role, id) {
+            if (role) return role.substring(0, 2).toUpperCase();
+            return id.toString().substring(0, 2);
+        }
+
+        function getRandomColor(id) {
+            const colors = ['#1a73e8', '#9c27b0', '#e91e63', '#3f51b5', '#00bcd4', '#009688', '#f97316', '#795548'];
+            return colors[(id || 0) % colors.length];
+        }
+
+        function getYears(e) {
+            return e.years_at_company ?? e.YearsAtCompany ?? e.yearsAtCompany ?? 0;
+        }
+
+        // ---------------- DASHBOARD RENDERING ----------------
+        let currentDeptFilter = 'All';
+
+        function filterDept(dept, el) {
+            document.querySelectorAll('.dash-header .filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            currentDeptFilter = dept;
+            renderDashboard();
+        }
+
+        function animateNumbers() {
+            if (!dashboardSummary) return;
+            const d = dashboardSummary;
+            
+            let filteredEmps = allEmployees;
+            let activeEmps = d.total_employees - d.high_critical_count;
+            let riskCount = d.high_critical_count;
+            let rate = (d.high_critical_count / d.total_employees * 100);
+            let avgScore = d.avg_risk_score;
+            let crits = d.risk_distribution.CRITICAL || 0;
+
+            if (currentDeptFilter !== 'All') {
+                filteredEmps = allEmployees.filter(e => e.Department === currentDeptFilter);
+                const total = filteredEmps.length;
+                const riskEmps = filteredEmps.filter(e => e.risk_band === 'HIGH' || e.risk_band === 'CRITICAL');
+                riskCount = riskEmps.length;
+                activeEmps = total - riskCount;
+                rate = total ? (riskCount / total * 100) : 0;
+                avgScore = total ? filteredEmps.reduce((s,e) => s + (e.composite_score||0), 0) / total : 0;
+                crits = filteredEmps.filter(e => e.risk_band === 'CRITICAL').length;
+                
+                animateValue(document.getElementById('stat-total'), 0, total, 1000);
+            } else {
+                animateValue(document.getElementById('stat-total'), 0, d.total_employees, 1000);
+            }
+
+            animateValue(document.getElementById('stat-active'), 0, activeEmps, 1000);
+            animateValue(document.getElementById('stat-risk'), 0, riskCount, 1000);
+            animateValue(document.getElementById('stat-rate'), 0, rate, 1000, v => v.toFixed(1) + '%');
+            animateValue(document.getElementById('stat-avg-score'), 0, avgScore, 1000, v => Math.floor(v));
+            animateValue(document.getElementById('stat-critical'), 0, crits, 1000);
+        }
+
+        function renderDashboard() {
+            if (!dashboardSummary || !allEmployees.length) return;
+            
+            animateNumbers();
+            
+            let emps = allEmployees;
+            if(currentDeptFilter !== 'All') {
+                emps = allEmployees.filter(e => e.Department === currentDeptFilter);
+            }
+
+            renderDeptChart(emps);
+            renderGenderCharts(emps);
+            renderAgeChart(emps);
+            renderTenureChart(emps);
+            renderSignalsChart(emps);
+            renderTopRiskTable(emps);
+        }
+
+        Chart.defaults.font.family = 'Inter';
+        Chart.defaults.color = '#64748b';
+
+        // 1. Dept Stacked Bar
+        function renderDeptChart(emps) {
+            const ctx = document.getElementById('deptChart').getContext('2d');
+            if(deptChartInst) deptChartInst.destroy();
+
+            // Aggregate by Dept
+            const deptStats = {};
+            emps.forEach(e => {
+                const d = e.Department || 'Unknown';
+                if(!deptStats[d]) deptStats[d] = { LOW:0, MEDIUM:0, HIGH:0, CRITICAL:0 };
+                deptStats[d][e.risk_band || 'LOW']++;
+            });
+
+            const labels = Object.keys(deptStats);
+            const dataLow = labels.map(l => deptStats[l].LOW);
+            const dataMed = labels.map(l => deptStats[l].MEDIUM);
+            const dataHigh = labels.map(l => deptStats[l].HIGH);
+            const dataCrit = labels.map(l => deptStats[l].CRITICAL);
+
+            deptChartInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'LOW', data: dataLow, backgroundColor: C_LOW },
+                        { label: 'MEDIUM', data: dataMed, backgroundColor: C_MED },
+                        { label: 'HIGH', data: dataHigh, backgroundColor: C_HIGH },
+                        { label: 'CRITICAL', data: dataCrit, backgroundColor: C_CRIT }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { color: '#f0f4ff' } },
+                        y: { stacked: true, grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12 }
+                    },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        // 2. Gender Donuts
+        function renderGenderCharts(emps) {
+            const maleCtx = document.getElementById('genderMaleChart').getContext('2d');
+            const femaleCtx = document.getElementById('genderFemaleChart').getContext('2d');
+            
+            if(genderMaleChartInst) genderMaleChartInst.destroy();
+            if(genderFemaleChartInst) genderFemaleChartInst.destroy();
+
+            // Odd ID = Male, Even ID = Female
+            const males = emps.filter(e => (e.EmployeeNumber || e.employee_id) % 2 !== 0);
+            const females = emps.filter(e => (e.EmployeeNumber || e.employee_id) % 2 === 0);
+
+            document.getElementById('male-count').innerText = males.length;
+            document.getElementById('female-count').innerText = females.length;
+
+            const countBands = (arr) => {
+                const b = { LOW:0, MEDIUM:0, HIGH:0, CRITICAL:0 };
+                arr.forEach(e => b[e.risk_band || 'LOW']++);
+                return [b.LOW, b.MEDIUM, b.HIGH, b.CRITICAL];
+            };
+
+            const maleData = countBands(males);
+            const femaleData = countBands(females);
+
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+                },
+                animation: { duration: 1500, easing: 'easeOutQuart' }
+            };
+
+            genderMaleChartInst = new Chart(maleCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+                    datasets: [{
+                        data: maleData,
+                        backgroundColor: ['#93c5fd', '#3b82f6', '#1d4ed8', '#1e3a8a'],
+                        borderWidth: 0
+                    }]
+                },
+                options: commonOptions
+            });
+
+            genderFemaleChartInst = new Chart(femaleCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+                    datasets: [{
+                        data: femaleData,
+                        backgroundColor: ['#fbcfe8', '#ec4899', '#be185d', '#831843'],
+                        borderWidth: 0
+                    }]
+                },
+                options: commonOptions
+            });
+        }
+
+        // 3. Age Group
+        function renderAgeChart(emps) {
+            const ctx = document.getElementById('ageChart').getContext('2d');
+            if(ageChartInst) ageChartInst.destroy();
+
+            const ageBands = { "Under 25": 0, "25-34": 0, "35-44": 0, "45-54": 0, "55+": 0 };
+            
+            emps.forEach(e => {
+                // Only count HIGH+CRITICAL
+                if (e.risk_band === 'HIGH' || e.risk_band === 'CRITICAL') {
+                    const age = e.Age || 30;
+                    if (age < 25) ageBands["Under 25"]++;
+                    else if (age <= 34) ageBands["25-34"]++;
+                    else if (age <= 44) ageBands["35-44"]++;
+                    else if (age <= 54) ageBands["45-54"]++;
+                    else ageBands["55+"]++;
+                }
+            });
+
+            const labels = Object.keys(ageBands);
+            const data = Object.values(ageBands);
+            
+            // Gradient based on count
+            const max = Math.max(...data) || 1;
+            const bgColors = data.map(d => {
+                const ratio = d / max;
+                // blue to red
+                const r = Math.round(26 + ratio * (239 - 26));
+                const g = Math.round(115 - ratio * (115 - 68));
+                const b = Math.round(232 - ratio * (232 - 68));
+                return `rgba(${r}, ${g}, ${b}, 0.8)`;
+            });
+
+            ageChartInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'High/Critical Employees',
+                        data: data,
+                        backgroundColor: bgColors,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f0f4ff' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        // 4. Tenure Trend
+        function renderTenureChart(emps) {
+            const ctx = document.getElementById('tenureChart').getContext('2d');
+            if(tenureChartInst) tenureChartInst.destroy();
+
+            const bandDefs = [
+                { label: "0-1",  filter: e => getYears(e) <= 1 },
+                { label: "2-3",  filter: e => getYears(e) >= 2 && getYears(e) <= 3 },
+                { label: "4-5",  filter: e => getYears(e) >= 4 && getYears(e) <= 5 },
+                { label: "6-8",  filter: e => getYears(e) >= 6 && getYears(e) <= 8 },
+                { label: "9-12", filter: e => getYears(e) >= 9 && getYears(e) <= 12 },
+                { label: "13+",  filter: e => getYears(e) >= 13 },
+            ];
+
+            const bandData = bandDefs.map(band => {
+                const group = emps.filter(band.filter);
+                const avgScore = group.length 
+                    ? group.reduce((s, e) => s + (e.composite_score ?? 0), 0) / group.length 
+                    : 0;
+                const highCount = group.filter(e => e.risk_band === 'HIGH' || e.risk_band === 'CRITICAL').length;
+                return {
+                    label: band.label,
+                    avgScore: Math.round(avgScore * 10) / 10,
+                    highPct: group.length ? Math.round(highCount / group.length * 100) : 0,
+                    count: group.length
+                };
+            });
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(26,115,232,0.3)');
+            gradient.addColorStop(1, 'rgba(26,115,232,0)');
+
+            tenureChartInst = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: bandData.map(b => b.label),
+                    datasets: [
+                        {
+                            label: 'Avg Risk Score',
+                            data: bandData.map(b => b.avgScore),
+                            borderColor: '#1a73e8',
+                            backgroundColor: gradient,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '% High/Critical',
+                            data: bandData.map(b => b.highPct),
+                            borderColor: '#ef4444',
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            pointRadius: 4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { type: 'linear', position: 'left', min: 0, max: 100, grid: { color: '#f0f4ff' } },
+                        y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            callbacks: {
+                                afterBody: (ctx) => 'Group Size: ' + bandData[ctx[0].dataIndex].count
+                            }
+                        }
+                    },
+                    animation: { duration: 2000, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        // 5. Top Risk Signals
+        function renderSignalsChart(emps) {
+            const ctx = document.getElementById('signalsChart').getContext('2d');
+            if(signalsChartInst) signalsChartInst.destroy();
+
+            // Always use dashboard-summary flag_prevalence (accurate percentages)
+            const source = dashboardSummary.flag_prevalence;
+
+            const flagMap = {
+                flight_risk_flag: "Flight Risk",
+                high_burnout_flag: "Burnout Risk",
+                career_stagnation_flag: "Career Stagnation",
+                compensation_flag: "Compensation Gap",
+                low_engagement_flag: "Low Engagement",
+                performance_drop_flag: "Performance Drop",
+                absenteeism_flag: "Absenteeism"
+            };
+
+            const sorted = Object.entries(source)
+                .map(([k,v]) => ({ label: flagMap[k] || k, val: v }))
+                .sort((a,b) => b.val - a.val);
+
+            const gradient = ctx.createLinearGradient(0, 0, 400, 0);
+            gradient.addColorStop(0, '#f59e0b');
+            gradient.addColorStop(1, '#ef4444');
+
+            signalsChartInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(s => s.label),
+                    datasets: [{
+                        data: sorted.map(s => s.val),
+                        backgroundColor: gradient,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { beginAtZero: true, max: 100, grid: { color: '#f0f4ff' } },
+                        y: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        function renderTopRiskTable(emps) {
+            const tbody = document.getElementById('top-risk-tbody');
+            
+            // Sort by score
+            const sorted = [...emps].sort((a,b) => (b.composite_score||0) - (a.composite_score||0)).slice(0, 5);
+            
+            tbody.innerHTML = sorted.map(e => {
+                const id = e.EmployeeNumber || 0;
+                const score = Math.round(e.composite_score || 0);
+                const role = e.JobRole || 'Unknown';
+                const dept = e.Department || 'Unknown';
+                const primarySignal = e.active_flag_count > 0 ? `${e.active_flag_count} Active Flag${e.active_flag_count > 1 ? 's' : ''}` : 'None';
+                
+                let bgClass = 'bg-low';
+                if(e.risk_band === 'CRITICAL') bgClass = 'bg-critical';
+                else if(e.risk_band === 'HIGH') bgClass = 'bg-high';
+                else if(e.risk_band === 'MEDIUM') bgClass = 'bg-medium';
+
+                return `
+                <tr onclick='openDetailPanel(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar" style="background: ${getRandomColor(id)}">${getAvatarInitials(role, id)}</div>
+                            <div style="font-weight: 600">EMP-${id}</div>
+                        </div>
+                    </td>
+                    <td>${dept}</td>
+                    <td>${role}</td>
+                    <td style="text-transform: capitalize">${primarySignal}</td>
+                    <td style="width: 200px">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                            <span>Score</span><span style="font-weight:700">${score}</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill ${bgClass}" style="width: ${score}%"></div></div>
+                    </td>
+                    <td><span class="band-badge ${e.risk_band}">${e.risk_band}</span></td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        // ---------------- EMPLOYEES & ALERTS VIEWS ----------------
+        let empBandFilter = 'ALL';
+        let empSearch = '';
+
+        function setEmpBandFilter(el, band) {
+            document.querySelectorAll('#view-employees .filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            empBandFilter = band;
+            filterEmployeesTable();
+        }
+
+        function filterEmployeesTable() {
+            empSearch = document.getElementById('emp-search').value.toLowerCase();
+            const dept = document.getElementById('emp-dept-filter').value;
+            
+            const filtered = allEmployees.filter(e => {
+                const matchBand = empBandFilter === 'ALL' || e.risk_band === empBandFilter;
+                const matchDept = dept === 'All' || (e.Department || e.department) === dept;
+                const matchSearch = String(e.EmployeeNumber||e.employee_id).includes(empSearch) || 
+                                    String(e.JobRole||e.job_role).toLowerCase().includes(empSearch);
+                return matchBand && matchDept && matchSearch;
+            });
+            
+            renderEmployeesList(filtered);
+        }
+
+        function renderEmployees() {
+            renderEmployeesList(allEmployees);
+        }
+
+        function renderEmployeesList(emps) {
+            const tbody = document.getElementById('emp-tbody');
+            tbody.innerHTML = emps.map(e => {
+                const id = e.EmployeeNumber || 0;
+                const score = Math.round(e.composite_score || 0);
+                const role = e.JobRole || 'Unknown';
+                const dept = e.Department || 'Unknown';
+                
+                let bgClass = 'bg-low';
+                if(e.risk_band === 'CRITICAL') bgClass = 'bg-critical';
+                else if(e.risk_band === 'HIGH') bgClass = 'bg-high';
+                else if(e.risk_band === 'MEDIUM') bgClass = 'bg-medium';
+
+                return `
+                <tr onclick='openDetailPanel(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar" style="background: ${getRandomColor(id)}">${getAvatarInitials(role, id)}</div>
+                            <div style="font-weight: 600">EMP-${id}</div>
+                        </div>
+                    </td>
+                    <td>${dept}</td>
+                    <td>${role}</td>
+                    <td style="width: 200px">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                            <span>Score</span><span style="font-weight:700">${score}</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill ${bgClass}" style="width: ${score}%"></div></div>
+                    </td>
+                    <td><span class="band-badge ${e.risk_band}">${e.risk_band}</span></td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        let allAlerts = [];
+
+        async function renderAlerts() {
+            const filters = document.getElementById('alerts-filters');
+            try {
+                const res = await fetch(`${API_BASE}/alerts`);
+                if (res.ok) {
+                    const data = await res.json();
+                    allAlerts = data.employees || [];
+                }
+            } catch(err) { console.error(err); }
+
+            const counts = { ALL: allAlerts.length, CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+            allAlerts.forEach(e => { if (counts[e.risk_band] !== undefined) counts[e.risk_band]++; });
+
+            filters.innerHTML = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(b => `
+                <div class="filter-pill ${b==='ALL'?'active':''}" onclick="filterAlerts(this, '${b}')">
+                    ${b === 'ALL' ? 'All Alerts' : b} <span class="chip ${b==='CRITICAL'||b==='HIGH'?'red':'blue'}">${counts[b]}</span>
+                </div>
+            `).join('');
+
+            renderAlertCards(allAlerts);
+        }
+
+        let alertBand = 'ALL';
+        function filterAlerts(el, band) {
+            document.querySelectorAll('#alerts-filters .filter-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            alertBand = band;
+            const filtered = band === 'ALL' ? allAlerts : allAlerts.filter(e => e.risk_band === band);
+            renderAlertCards(filtered);
+        }
+
+        function renderAlertCards(emps) {
+            const grid = document.getElementById('alerts-grid');
+            grid.innerHTML = emps.map(e => {
+                const id = e.EmployeeNumber || 0;
+                const score = Math.round(e.composite_score || 0);
+                const role = e.JobRole || 'Unknown';
+                const dept = e.Department || 'Unknown';
+                const borderColor = e.risk_band === 'CRITICAL' ? 'var(--critical-high)' : e.risk_band === 'HIGH' ? '#f97316' : e.risk_band === 'MEDIUM' ? 'var(--medium)' : 'var(--low)';
+                const flagCount = e.active_flag_count || 0;
+
+                // Format suggestion as numbered list
+                const rawSuggestion = e.retention_suggestion || 'No suggestion available.';
+                const suggLines = rawSuggestion.split(/\n|(?=\d+\.)/).filter(s => s.trim());
+                const suggHtml = suggLines.map(s => `<li style="margin-bottom:8px;">${s.replace(/^\d+\.\s*/, '')}</li>`).join('');
+
+                return `
+                <div class="col-span-4 card alert-card ${e.risk_band}" style="position:relative;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+                        <div class="user-cell">
+                            <div class="avatar" style="background:${getRandomColor(id)};width:44px;height:44px;font-size:14px;">${getAvatarInitials(role,id)}</div>
+                            <div>
+                                <div style="font-weight:700;font-size:15px;">EMP-${id}</div>
+                                <div style="font-size:12px;color:var(--text-muted);">${role}</div>
+                                <div style="font-size:11px;color:var(--text-muted);">${dept}</div>
+                            </div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="width:52px;height:52px;border-radius:50%;border:3px solid ${borderColor};display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                                <span style="font-weight:800;font-size:16px;color:${borderColor};">${score}</span>
+                            </div>
+                            <span class="band-badge ${e.risk_band}" style="margin-top:6px;display:inline-flex;">${e.risk_band}</span>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:14px;">
+                        <span class="flag-box active"><i class="fa-solid fa-flag" style="margin-right:4px;"></i>${flagCount} Active Flag${flagCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <details style="margin-bottom:14px;">
+                        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--primary);list-style:none;display:flex;align-items:center;gap:6px;">
+                            <i class="fa-solid fa-lightbulb"></i> View AI Retention Suggestion
+                        </summary>
+                        <ol style="margin:12px 0 0 0;padding-left:20px;font-size:13px;line-height:1.7;color:var(--text-main);font-family:'Inter',sans-serif;">${suggHtml}</ol>
+                    </details>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn-action btn-primary" onclick='openDetailPanel(${JSON.stringify(e).replace(/'/g, "&#39;")})' style="flex:1;font-size:12px;padding:8px;justify-content:center;"><i class="fa-solid fa-eye"></i> View Profile</button>
+                        <button class="btn-action btn-danger" style="flex:1;font-size:12px;padding:8px;justify-content:center;"><i class="fa-solid fa-bell"></i> Alert HR</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // ---------------- DETAIL PANEL ----------------
+        function openDetailPanel(e) {
+            document.getElementById('panel-overlay').classList.add('open');
+            document.getElementById('detail-panel').classList.add('open');
+            
+            const id = e.EmployeeNumber || e.employee_id || 0;
+            document.getElementById('panel-id').innerText = `Employee #${id}`;
+            document.getElementById('panel-role').innerText = `${e.JobRole||e.job_role} · ${e.Department||e.department}`;
+            
+            const score = Math.round(e.composite_score || 0);
+            document.getElementById('panel-score').innerText = score;
+            const b = document.getElementById('panel-band');
+            b.className = 'band-badge ' + e.risk_band;
+            b.innerText = e.risk_band;
+
+            // Flags — API only gives count, not names in list endpoint
+            const flagCount = e.active_flag_count || 0;
+            document.getElementById('panel-flags').innerHTML = flagCount > 0
+                ? `<span class="flag-box active"><i class="fa-solid fa-flag" style="margin-right:4px;"></i>${flagCount} Active Behavioral Flag${flagCount > 1 ? 's' : ''} Detected</span>`
+                : '<span style="font-size: 12px; color: var(--text-muted);">No active risk flags detected.</span>';
+
+            // Behaviors — interpret from score level
+            const scoreLevel = e.composite_score || 0;
+            document.getElementById('b-absent').innerText = scoreLevel > 75 ? 'Elevated' : 'Normal';
+            document.getElementById('b-absent').style.color = scoreLevel > 75 ? 'var(--critical-high)' : 'var(--low)';
+            document.getElementById('b-engage').innerText = scoreLevel > 70 ? 'Low' : 'Average';
+            document.getElementById('b-engage').style.color = scoreLevel > 70 ? 'var(--medium)' : 'var(--text-main)';
+            document.getElementById('b-burnout').innerText = scoreLevel > 80 ? 'High' : scoreLevel > 60 ? 'Moderate' : 'Low';
+            document.getElementById('b-burnout').style.color = scoreLevel > 80 ? 'var(--critical-high)' : scoreLevel > 60 ? 'var(--medium)' : 'var(--low)';
+            document.getElementById('b-career').innerText = flagCount > 2 ? 'At Risk' : 'Stable';
+            document.getElementById('b-career').style.color = flagCount > 2 ? 'var(--medium)' : 'var(--text-main)';
+
+            // Gauge
+            drawGauge(score, e.risk_band);
+
+            // Professional AI Suggestion — formatted numbered list
+            const suggBox = document.getElementById('panel-suggestion');
+            const rawText = e.retention_suggestion || 'No specific retention suggestions available.';
+            const lines = rawText.split(/\n|(?=\d+\.)/).filter(s => s.trim());
+            suggBox.innerHTML = '<ol style="padding-left:20px;margin:0;">' + 
+                lines.map(s => `<li style="margin-bottom:10px;">${s.replace(/^\d+\.\s*/, '')}</li>`).join('') + '</ol>';
+        }
+
+        function closePanel() {
+            document.getElementById('panel-overlay').classList.remove('open');
+            document.getElementById('detail-panel').classList.remove('open');
+        }
+
+        function drawGauge(score, band) {
+            const ctx = document.getElementById('panelGauge').getContext('2d');
+            if(panelGaugeInst) panelGaugeInst.destroy();
+            
+            let color = C_LOW;
+            if(band === 'CRITICAL') color = C_CRIT;
+            else if(band === 'HIGH') color = C_HIGH;
+            else if(band === 'MEDIUM') color = C_MED;
+
+            panelGaugeInst = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [score, 100 - score],
+                        backgroundColor: [color, '#e2e8f0'],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '80%',
+                    plugins: { tooltip: { enabled: false } },
+                    animation: { duration: 1500, easing: 'easeOutBounce' }
+                }
+            });
+        }
+
+        // ---------------- ACTIONS ----------------
+        async function runAnalysis(btn) {
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
+            btn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/analyze?send_alerts=false`, { method: 'POST' });
+                if(res.ok) {
+                    showToast('Analysis complete. Pipeline refreshed.', 'success');
+                    await fetchAllData();
+                    renderDashboard();
+                    updateRefreshTime();
+                } else {
+                    showToast('Analysis failed. Check pipeline.', 'error');
+                }
+            } catch (e) {
+                showToast('Network error.', 'error');
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Re-run Analysis';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

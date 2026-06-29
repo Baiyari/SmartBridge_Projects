@@ -1,0 +1,348 @@
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="brand">
+            <i class="fa-solid fa-chart-line"></i>
+            <h1>AttritionIQ</h1>
+        </div>
+        
+        <div class="nav-items">
+            <a href="#" class="nav-item active" onclick="switchTab('dashboard')">
+                <i class="fa-solid fa-border-all"></i> Dashboard
+            </a>
+            <a href="#" class="nav-item" onclick="switchTab('employees')">
+                <i class="fa-solid fa-users"></i> Employees
+            </a>
+            <a href="#" class="nav-item" onclick="switchTab('alerts')">
+                <i class="fa-solid fa-bell"></i> Alerts
+            </a>
+        </div>
+        
+        <div class="pulse-indicator">
+            <div class="pulse-dot"></div>
+            <span style="font-size: 13px; font-weight: 500;">System Active</span>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dashboard" class="view-container active">
+            <!-- HEADER -->
+            <div class="dash-header">
+                <div>
+                    <h2 class="dash-title">HR Analytics | Attrition Intelligence Dashboard</h2>
+                    <p class="dash-subtitle">AI Workforce Intelligence System · IBM HR Dataset</p>
+                </div>
+                <div class="header-actions">
+                    <div class="status-badge"><i class="fa-solid fa-check-circle"></i> Live Model Active</div>
+                    <div class="filter-pill active" onclick="filterDept('All', this)">All</div>
+                    <div class="filter-pill" onclick="filterDept('Research & Development', this)">R&D</div>
+                    <div class="filter-pill" onclick="filterDept('Sales', this)">Sales</div>
+                    <div class="filter-pill" onclick="filterDept('Human Resources', this)">HR</div>
+                </div>
+            </div>
+
+            <!-- ROW 1: STATS -->
+            <div class="grid-12">
+                <div class="col-span-2 card stat-card blue">
+                    <div class="stat-header">
+                        <span class="stat-label">Total Employees</span>
+                        <i class="fa-solid fa-users stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-total">0</div>
+                </div>
+                <div class="col-span-2 card stat-card green">
+                    <div class="stat-header">
+                        <span class="stat-label">Active Employees</span>
+                        <i class="fa-solid fa-user-check stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-active">0</div>
+                </div>
+                <div class="col-span-2 card stat-card red">
+                    <div class="stat-header">
+                        <span class="stat-label">Total Risk</span>
+                        <i class="fa-solid fa-user-xmark stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-risk">0</div>
+                </div>
+                <div class="col-span-2 card stat-card orange">
+                    <div class="stat-header">
+                        <span class="stat-label">Attrition Rate</span>
+                        <i class="fa-solid fa-arrow-trend-up stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-rate">0%</div>
+                </div>
+                <div class="col-span-2 card stat-card purple">
+                    <div class="stat-header">
+                        <span class="stat-label">Avg Risk Score</span>
+                        <i class="fa-solid fa-chart-pie stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-avg-score">0</div>
+                </div>
+                <div class="col-span-2 card stat-card red">
+                    <div class="stat-header">
+                        <span class="stat-label">Critical Alerts</span>
+                        <i class="fa-solid fa-bell stat-icon"></i>
+                    </div>
+                    <div class="stat-value" id="stat-critical">0</div>
+                </div>
+            </div>
+
+            <!-- ROW 2: DEPARTMENTS & GENDER -->
+            <div class="grid-12">
+                <div class="col-span-7 card">
+                    <div class="chart-header">
+                        <span>Risk Distribution by Department</span>
+                        <i class="fa-solid fa-building text-muted"></i>
+                    </div>
+                    <div class="chart-wrapper tall">
+                        <canvas id="deptChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-span-5 card">
+                    <div class="chart-header">
+                        <span>Risk Distribution by Gender</span>
+                        <i class="fa-solid fa-venus-mars text-muted"></i>
+                    </div>
+                    <div class="gender-donuts">
+                        <div class="donut-container">
+                            <canvas id="genderMaleChart"></canvas>
+                            <div class="donut-center">
+                                <i class="fa-solid fa-mars donut-icon" style="color: var(--male)"></i>
+                                <div class="donut-label">Male</div>
+                                <div class="donut-count" id="male-count">0</div>
+                            </div>
+                        </div>
+                        <div class="donut-container">
+                            <canvas id="genderFemaleChart"></canvas>
+                            <div class="donut-center">
+                                <i class="fa-solid fa-venus donut-icon" style="color: var(--female)"></i>
+                                <div class="donut-label">Female</div>
+                                <div class="donut-count" id="female-count">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 3: AGE, TENURE, SIGNALS -->
+            <div class="grid-12">
+                <div class="col-span-4 card">
+                    <div class="chart-header">
+                        <span>Attrition Risk by Age Group</span>
+                        <i class="fa-solid fa-cake-candles text-muted"></i>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="ageChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-span-4 card">
+                    <div class="chart-header">
+                        <span>Risk Trend by Years at Company</span>
+                        <i class="fa-solid fa-calendar-days text-muted"></i>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="tenureChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-span-4 card">
+                    <div class="chart-header">
+                        <span>Top Risk Signals</span>
+                        <i class="fa-solid fa-triangle-exclamation text-muted"></i>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="signalsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 4: SYSTEM STATUS -->
+            <div class="grid-12">
+                <div class="col-span-12 card data-source-card">
+                    <div class="data-col">
+                        <div class="data-icon"><i class="fa-solid fa-database"></i></div>
+                        <div class="data-info">
+                            <span class="data-label">Data Source</span>
+                            <span class="data-value">IBM HR Analytics CSV <span class="chip green">Connected</span></span>
+                            <span class="data-subtext">1,470 Records</span>
+                        </div>
+                    </div>
+                    <div class="data-col">
+                        <div class="data-icon" style="background: rgba(34,197,94,0.1); color: var(--low)"><i class="fa-regular fa-clock"></i></div>
+                        <div class="data-info">
+                            <span class="data-label">Last Refreshed</span>
+                            <span class="data-value" id="status-time">Just now <span class="chip green">Live</span></span>
+                            <span class="data-subtext">Auto-sync enabled</span>
+                        </div>
+                    </div>
+                    <div class="data-col">
+                        <div class="data-icon" style="background: rgba(245,158,11,0.1); color: var(--medium)"><i class="fa-solid fa-network-wired"></i></div>
+                        <div class="data-info">
+                            <span class="data-label">Data Pipeline</span>
+                            <span class="data-value">7 Behavioral Signals <span class="chip green">Healthy</span></span>
+                            <span class="data-subtext">Model accuracy: 92.4%</span>
+                        </div>
+                    </div>
+                    <div class="data-col" style="justify-content: flex-end">
+                        <button class="btn-run" onclick="runAnalysis(this)">
+                            <i class="fa-solid fa-rotate-right"></i> Re-run Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 5: TOP AT-RISK TABLE -->
+            <div class="grid-12">
+                <div class="col-span-12 card">
+                    <div class="chart-header" style="margin-bottom: 24px;">
+                        <span>Top At-Risk Employees</span>
+                        <button class="btn-run" onclick="switchTab('employees')" style="background: #f1f5f9; color: var(--text-main); font-size: 12px; padding: 6px 12px;"><i class="fa-solid fa-arrow-right"></i> View All</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Role</th>
+                                    <th>Primary Signal</th>
+                                    <th>Risk Score</th>
+                                    <th>Band</th>
+                                </tr>
+                            </thead>
+                            <tbody id="top-risk-tbody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMPLOYEES VIEW -->
+        <div id="view-employees" class="view-container">
+            <div class="dash-header">
+                <div>
+                    <h2 class="dash-title">Employee Directory</h2>
+                    <p class="dash-subtitle">Analyze individual risk profiles and behavioral flags</p>
+                </div>
+            </div>
+
+            <div class="page-filters card" style="margin-bottom: 24px;">
+                <div class="search-box">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" id="emp-search" placeholder="Search by ID or Role..." onkeyup="filterEmployeesTable()">
+                </div>
+                <select id="emp-dept-filter" onchange="filterEmployeesTable()" style="padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; background: white;">
+                    <option value="All">All Departments</option>
+                    <option value="Research & Development">Research & Development</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Human Resources">Human Resources</option>
+                </select>
+                <div class="filter-pill active" data-band="ALL" onclick="setEmpBandFilter(this, 'ALL')">All Bands</div>
+                <div class="filter-pill" data-band="CRITICAL" onclick="setEmpBandFilter(this, 'CRITICAL')">Critical</div>
+                <div class="filter-pill" data-band="HIGH" onclick="setEmpBandFilter(this, 'HIGH')">High</div>
+                <div class="filter-pill" data-band="MEDIUM" onclick="setEmpBandFilter(this, 'MEDIUM')">Medium</div>
+                <div class="filter-pill" data-band="LOW" onclick="setEmpBandFilter(this, 'LOW')">Low</div>
+            </div>
+
+            <div class="card table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Department</th>
+                            <th>Role</th>
+                            <th>Risk Score</th>
+                            <th>Band</th>
+                        </tr>
+                    </thead>
+                    <tbody id="emp-tbody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ALERTS VIEW -->
+        <div id="view-alerts" class="view-container">
+            <div class="dash-header">
+                <div>
+                    <h2 class="dash-title">Retention Alerts</h2>
+                    <p class="dash-subtitle">Actionable AI recommendations for high-risk employees</p>
+                </div>
+            </div>
+
+            <div class="page-filters card" style="margin-bottom: 24px;" id="alerts-filters">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="grid-12" id="alerts-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            Powered by Groq LLaMA 3.3 70B · Random Forest ML · IBM HR Analytics · Assignee: Baiyari · Assigned By: Ravi Teja
+        </div>
+    </div>
+
+    <!-- EMPLOYEE DETAIL PANEL -->
+    <div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+    <div class="detail-panel" id="detail-panel">
+        <button class="close-btn" onclick="closePanel()"><i class="fa-solid fa-times"></i></button>
+        <div class="panel-header">
+            <h2 id="panel-id" style="font-size: 24px; margin-bottom: 4px;">Employee #000</h2>
+            <div id="panel-role" style="font-size: 14px; color: #cbd5e1;">Role · Department</div>
+        </div>
+        <div class="panel-content">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Composite Risk Score</div>
+                <div class="gauge-container">
+                    <canvas id="panelGauge"></canvas>
+                    <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: 700; color: var(--text-main);" id="panel-score">0</div>
+                </div>
+                <div id="panel-band" class="band-badge CRITICAL">CRITICAL</div>
+            </div>
+
+            <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-muted); text-transform: uppercase;">Behavioral Indicators</h3>
+            <div class="behavior-grid">
+                <div class="b-card">
+                    <div class="b-title">Absenteeism</div>
+                    <div class="b-val" id="b-absent">Normal</div>
+                </div>
+                <div class="b-card">
+                    <div class="b-title">Engagement</div>
+                    <div class="b-val" id="b-engage">0/4</div>
+                </div>
+                <div class="b-card">
+                    <div class="b-title">Burnout</div>
+                    <div class="b-val" id="b-burnout">Low</div>
+                </div>
+                <div class="b-card">
+                    <div class="b-title">Career Growth</div>
+                    <div class="b-val" id="b-career">Stable</div>
+                </div>
+            </div>
+
+            <h3 style="font-size: 14px; margin-top: 24px; margin-bottom: 12px; color: var(--text-muted); text-transform: uppercase;">Active Flags</h3>
+            <div id="panel-flags"></div>
+
+            <h3 style="font-size: 14px; margin-top: 24px; color: var(--text-muted); text-transform: uppercase;">AI Retention Suggestion</h3>
+            <div class="typewriter" id="panel-suggestion"></div>
+
+            <div class="action-btns">
+                <button class="btn-action btn-primary"><i class="fa-solid fa-calendar-check"></i> Schedule 1:1 Check-in</button>
+                <button class="btn-action btn-warning"><i class="fa-solid fa-award"></i> Send Recognition</button>
+                <button class="btn-action btn-danger"><i class="fa-solid fa-triangle-exclamation"></i> Alert HR Manager</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast">
+        <i class="fa-solid fa-circle-check" id="toast-icon"></i>
+        <span id="toast-msg">Success</span>
+    </div>
