@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegIntel | Automated Compliance Intelligence for Indian Banks</title>
+    <meta name="description" content="RegIntel is an agentic AI platform that automatically extracts binding obligations from RBI/SEBI regulatory circulars and detects gaps against internal bank policies.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Icons & Charts -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#dashboard" class="logo">
+                <i data-lucide="shield-check" class="logo-icon"></i>
+                <span>RegIntel</span>
+            </a>
+            <div class="nav-links">
+                <a href="#platform">Platform</a>
+                <a href="#dashboard">Audit Console</a>
+                <a href="#cases">Use Cases</a>
+            </div>
+            <div class="nav-actions" style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <button id="theme-toggle" class="btn btn-outline" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;" title="Toggle Light/Dark Theme">
+                    <i data-lucide="sun" id="theme-icon-sun" style="width: 18px; height: 18px;"></i>
+                    <i data-lucide="moon" id="theme-icon-moon" style="width: 18px; height: 18px; display: none;"></i>
+                </button>
+                <!-- Auth Buttons (logged-out state) -->
+                <div id="nav-auth-loggedout" style="display: flex; align-items: center; gap: 8px;">
+                    <button id="nav-login-btn" class="btn btn-outline">Log In</button>
+                    <button id="nav-signup-btn" class="btn btn-primary">Sign Up</button>
+                </div>
+                <!-- User chip (logged-in state) -->
+                <div id="nav-auth-loggedin" style="display: none; align-items: center; gap: 12px;">
+                    <div class="user-avatar-chip">
+                        <span id="nav-user-initial" class="user-initial"></span>
+                        <span id="nav-user-name" class="user-name-label"></span>
+                    </div>
+                    <button id="nav-logout-btn" class="btn btn-outline" style="padding: 6px 14px; font-size: 0.85rem;">Log Out</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero reveal">
+        <div class="hero-background"></div>
+        <div class="container hero-content">
+            <h1 class="hero-title">Compliance,<br>Verified Automatically.</h1>
+            <p class="hero-subtitle">Agentic AI designed exclusively for Indian banks and NBFCs. Extract obligations from RBI/SEBI circulars and detect gaps against internal policies with pinpoint accuracy.</p>
+            <div class="hero-cta">
+                <a href="#dashboard" class="btn btn-primary btn-large">View Dashboard</a>
+            </div>
+        </div>
+        <div class="client-logos">
+            <p>Regulatory Scope &amp; Technology Stack</p>
+            <div class="logo-strip">
+                <div class="client-logo"><i data-lucide="shield"></i> RBI</div>
+                <div class="client-logo"><i data-lucide="trending-up"></i> SEBI</div>
+                <div class="client-logo"><i data-lucide="globe"></i> FEMA</div>
+                <div class="client-logo"><i data-lucide="cpu"></i> Llama 3 (Groq)</div>
+                <div class="client-logo"><i data-lucide="link"></i> LangChain</div>
+                <div class="client-logo"><i data-lucide="database"></i> ChromaDB</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Product Demo Section -->
+    <section id="dashboard" class="product-demo reveal">
+        <div class="container">
+            <div class="demo-header text-center">
+                <h2>Precision Document Intelligence</h2>
+                <p>Upload a regulatory circular to instantly extract obligations, map to internal policies, and score compliance gaps.</p>
+            </div>
+
+            <!-- Dashboard Tabs -->
+            <div class="dashboard-tabs">
+                <button class="tab-btn active" id="tab-audit-btn">
+                    <i data-lucide="play" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i> Run Audit
+                </button>
+                <button class="tab-btn" id="tab-history-btn">
+                    <i data-lucide="history" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i> Audit History
+                </button>
+            </div>
+
+            <div class="demo-interface" id="audit-interface">
+                <!-- Upload State -->
+                <div id="upload-zone" class="upload-zone active">
+                    <div class="upload-icon-wrapper">
+                        <i data-lucide="upload-cloud"></i>
+                    </div>
+                    <h3>Upload a new regulatory circular</h3>
+                    <p class="upload-hint">Drag and drop your file here, or click to browse</p>
+                    <div class="accepted-formats">
+                        <span class="format-badge"><i data-lucide="file-text"></i> PDF</span>
+                        <span class="format-badge"><i data-lucide="file"></i> DOCX</span>
+                    </div>
+                    <button class="btn btn-outline" id="browse-btn">Browse files</button>
+                    <!-- Hidden file input for realism -->
+                    <input type="file" id="file-input" accept=".pdf,.docx" style="display: none;">
+                </div>
+
+                <!-- Processing State (Hidden initially) -->
+                <div id="processing-zone" class="processing-zone">
+                    <div class="agent-trace">
+                        <!-- Step 1 -->
+                        <div class="trace-step" id="step-1">
+                            <div class="step-indicator"><div class="spinner"></div><i data-lucide="check" class="check-icon"></i></div>
+                            <div class="step-content">
+                                <h4>Parsing document...</h4>
+                                <div class="file-chip"><i data-lucide="file-text"></i> <span id="demo-filename">RBI_Circular_KYC_2026.pdf</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 2 -->
+                        <div class="trace-step pending" id="step-2">
+                            <div class="step-indicator"><div class="spinner"></div><i data-lucide="check" class="check-icon"></i></div>
+                            <div class="step-content">
+                                <h4>Extracting obligation clauses</h4>
+                                <div class="tags-container" id="clause-tags">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="trace-step pending" id="step-3">
+                            <div class="step-indicator"><div class="spinner"></div><i data-lucide="check" class="check-icon"></i></div>
+                            <div class="step-content">
+                                <h4>Searching policy vector store</h4>
+                                <div class="policy-chips" id="policy-chips">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="trace-step pending" id="step-4">
+                            <div class="step-indicator"><div class="spinner"></div><i data-lucide="check" class="check-icon"></i></div>
+                            <div class="step-content">
+                                <h4>Scoring compliance gaps</h4>
+                                <div class="risk-meter-container">
+                                    <div class="risk-meter-bar">
+                                        <div class="risk-fill" id="risk-fill"></div>
+                                    </div>
+                                    <div class="risk-labels">
+                                        <span>Low</span>
+                                        <span>Med</span>
+                                        <span>High</span>
+                                        <span>Critical</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results State (Hidden initially) -->
+                <div id="results-zone" class="results-zone">
+                    <div class="results-header">
+                        <div class="results-title">
+                            <h3>Gap Analysis Report</h3>
+                            <span class="status-badge success">Analysis Complete</span>
+                        </div>
+                        <button class="btn btn-secondary btn-small"><i data-lucide="download"></i> Download PDF Report</button>
+                    </div>
+                    
+                    <!-- Real Data Visualizations -->
+                    <div class="charts-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); margin-bottom: var(--spacing-xl); width: 100%;">
+                        <div class="chart-card" style="background: var(--bg-tertiary); border: 1px solid rgba(255,255,255,0.05); padding: var(--spacing-lg); border-radius: var(--radius-md); position: relative; height: 260px;">
+                            <h4 style="margin-bottom: 2px; color: var(--text-primary); font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gaps by Severity</h4>
+                            <p style="margin: 0 0 var(--spacing-md) 0; color: var(--text-secondary); font-size: 0.72rem;">Click a slice to filter the table below</p>
+                            <div style="position: absolute; top: var(--spacing-2xl); bottom: var(--spacing-md); left: var(--spacing-md); right: var(--spacing-md);">
+                                <canvas id="severity-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card" style="background: var(--bg-tertiary); border: 1px solid rgba(255,255,255,0.05); padding: var(--spacing-lg); border-radius: var(--radius-md); position: relative; height: 260px;">
+                            <h4 style="margin-bottom: 2px; color: var(--text-primary); font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Top Priority Gaps</h4>
+                            <p style="margin: 0 0 var(--spacing-md) 0; color: var(--text-secondary); font-size: 0.72rem;">Click a bar to jump to that gap</p>
+                            <div style="position: absolute; top: var(--spacing-2xl); bottom: var(--spacing-md); left: var(--spacing-md); right: var(--spacing-md);">
+                                <canvas id="priority-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Obligation Clause</th>
+                                    <th>Risk Band</th>
+                                    <th>Penalty Score</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows populated by app.js after real audit -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="restart-demo text-center mt-4">
+                        <button class="btn btn-text" id="reset-demo-btn"><i data-lucide="rotate-ccw"></i> Analyze another document</button>
+                    </div>
+                </div>
+
+                <!-- Error State (Hidden initially) -->
+                <div id="error-zone" class="error-zone">
+                    <div class="error-icon-wrapper">
+                        <i data-lucide="alert-octagon"></i>
+                    </div>
+                    <h3 style="color: var(--text-primary); margin-bottom: 0.5rem; font-family: var(--font-serif); font-size: 1.5rem;">Audit Processing Error</h3>
+                    <p id="error-message" style="color: var(--text-secondary); max-width: 500px; margin: 0 auto 1.5rem auto; font-size: 0.95rem; line-height: 1.6;"></p>
+                    <button class="btn btn-outline" id="error-reset-btn"><i data-lucide="rotate-ccw"></i> Try another audit</button>
+                </div>
+            </div>
+
+            <!-- History Container (Hidden initially) -->
+            <div id="history-container" class="demo-interface" style="display: none; padding: var(--spacing-xl); min-height: 450px; overflow-y: auto; height: auto; flex-direction: column;">
+                <div class="history-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xl); width: 100%;">
+                    <div class="history-title">
+                        <h3 style="font-family: var(--font-serif); color: var(--text-primary); font-size: 1.5rem; margin: 0;">Audit History</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">Track and review compliance posture over time.</p>
+                    </div>
+                    <button class="btn btn-outline btn-small" id="refresh-history-btn" style="display: flex; align-items: center; gap: 6px;"><i data-lucide="refresh-cw"></i> Refresh History</button>
+                </div>
+
+                <!-- History Chart -->
+                <div class="history-chart-card" style="background: var(--bg-tertiary); border: 1px solid rgba(255,255,255,0.05); padding: var(--spacing-lg); border-radius: var(--radius-md); margin-bottom: var(--spacing-xl); width: 100%;">
+                    <h4 style="margin-bottom: var(--spacing-md); color: var(--text-primary); font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gaps Detected Over Time</h4>
+                    <div style="position: relative; height: 260px; width: 100%;">
+                        <canvas id="history-timeline-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- History Table -->
+                <div class="table-responsive" style="width: 100%;">
+                    <table class="results-table history-table">
+                        <thead>
+                            <tr>
+                                <th style="cursor: pointer;" id="sort-timestamp">Timestamp <i data-lucide="chevrons-up-down" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i></th>
+                                <th style="cursor: pointer;" id="sort-circular">Circular Number <i data-lucide="chevrons-up-down" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i></th>
+                                <th style="cursor: pointer;" id="sort-regulator">Regulator <i data-lucide="chevrons-up-down" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i></th>
+                                <th style="cursor: pointer;" id="sort-obligations">Obligations <i data-lucide="chevrons-up-down" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i></th>
+                                <th style="cursor: pointer;" id="sort-gaps">Gaps Detected <i data-lucide="chevrons-up-down" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i></th>
+                                <th style="cursor: pointer;" id="sort-penalty">Avg Penalty <i data-lucide="chevrons-up-down" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i></th>
+                                <th>Report</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pipeline Section (Asymmetric Layout) -->
+    <section id="platform" class="pipeline reveal">
+        <div class="container">
+            <h2 class="section-title">Built for Indian Banking Compliance</h2>
+            
+            <div class="pipeline-grid">
+                <div class="pipeline-card tall">
+                    <div class="card-icon"><i data-lucide="database"></i></div>
+                    <h3>1. Ingest</h3>
+                    <p>Connects securely to your internal policy repositories (SharePoint, Confluence) while continuously monitoring RBI and SEBI portals for new circulars and master directions.</p>
+                </div>
+                
+                <div class="pipeline-card wide">
+                    <div class="card-icon"><i data-lucide="cpu"></i></div>
+                    <h3>2. Extract</h3>
+                    <p>Our proprietary LLM pipeline breaks down dense regulatory text into discrete, enforceable obligations, identifying deadlines, conditions, and penal clauses.</p>
+                </div>
+                
+                <div class="pipeline-card wide">
+                    <div class="card-icon"><i data-lucide="git-compare"></i></div>
+                    <h3>3. Compare</h3>
+                    <p>Using semantic vector search, RegIntel maps new regulatory obligations against your existing SOPs and policies to pinpoint exact discrepancies.</p>
+                </div>
+                
+                <div class="pipeline-card tall">
+                    <div class="card-icon"><i data-lucide="alert-triangle"></i></div>
+                    <h3>4. Score</h3>
+                    <p>Quantifies compliance risk exposure, assigning severity bands and generating actionable remediation reports for your audit committees.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Case Studies / Static Cards -->
+    <section id="cases" class="carousel-section reveal">
+        <div class="container">
+            <h2 class="section-title">See RegIntel in Action</h2>
+        </div>
+        <div class="carousel-wrapper">
+            <div class="carousel-track">
+                <div class="carousel-card">
+                    <div class="card-overlay">
+                        <h3>KYC Master Direction Obligation Extraction</h3>
+                    </div>
+                    <div class="card-bg" style="background: linear-gradient(rgba(10, 13, 20, 0.4), rgba(10, 13, 20, 0.9)), url('https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=800') center/cover;"></div>
+                </div>
+                <div class="carousel-card active">
+                    <div class="card-overlay">
+                        <h3>LCR Gap Detection Walkthrough</h3>
+                    </div>
+                    <div class="card-bg" style="background: linear-gradient(rgba(10, 13, 20, 0.4), rgba(10, 13, 20, 0.9)), url('https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=800') center/cover;"></div>
+                </div>
+                <div class="carousel-card">
+                    <div class="card-overlay">
+                        <h3>Board-Level Audit Readiness</h3>
+                    </div>
+                    <div class="card-bg" style="background: linear-gradient(rgba(10, 13, 20, 0.4), rgba(10, 13, 20, 0.9)), url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=800') center/cover;"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer reveal">
+        <div class="footer-cta">
+            <div class="container text-center">
+                <h2>An agentic compliance pipeline, built end-to-end</h2>
+                <a href="#dashboard" class="btn btn-primary btn-large" style="margin-top: 1rem;">View Project on GitHub</a>
+            </div>
+        </div>
+        
+        <div class="footer-main container">
+            <div class="footer-grid">
+                <div class="footer-col brand-col">
+                    <a href="#dashboard" class="logo">
+                        <i data-lucide="shield-check" class="logo-icon"></i>
+                        <span>RegIntel</span>
+                    </a>
+                    <p class="brand-desc">The enterprise-grade agentic AI platform for Indian financial institutions.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Platform</h4>
+                    <a href="#platform">Data Ingestion</a>
+                    <a href="#platform">Obligation Extraction</a>
+                    <a href="#platform">Policy Mapping</a>
+                    <a href="#dashboard">Risk Scoring</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Solutions</h4>
+                    <a href="#dashboard">For Banks</a>
+                    <a href="#dashboard">For NBFCs</a>
+                    <a href="#dashboard">For FinTechs</a>
+                    <a href="#dashboard">Audit Readiness</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Resources</h4>
+                    <a href="#dashboard">Case Studies</a>
+                    <a href="#dashboard">RBI Updates</a>
+                    <a href="#dashboard">Documentation</a>
+                    <a href="#dashboard">API Reference</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Company</h4>
+                    <a href="#dashboard">About Us</a>
+                    <a href="#dashboard">Careers</a>
+                    <a href="#dashboard">Security</a>
+                    <a href="#dashboard">Contact</a>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <div class="copyright">
+                    &copy; 2026 RegIntel Platform. All rights reserved.
+                </div>
+                <div class="legal-links">
+                    <a href="#dashboard">Privacy Policy</a>
+                    <a href="#dashboard">Terms of Service</a>
+                    <a href="#dashboard">Cookie Choices</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="auth-modal-overlay" style="display: none;" aria-modal="true" role="dialog">
+        <div class="auth-modal-card">
+            <button id="auth-modal-close" class="auth-modal-close" aria-label="Close">&times;</button>
+            <div class="auth-logo">
+                <i data-lucide="shield-check" style="width: 28px; height: 28px; color: var(--accent-teal-light);"></i>
+                <span style="font-family: var(--font-serif); font-size: 1.4rem; font-weight: 600;">RegIntel</span>
+            </div>
+            <div class="auth-tabs">
+                <button class="auth-tab-btn active" id="auth-tab-login">Log In</button>
+                <button class="auth-tab-btn" id="auth-tab-signup">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="auth-form-login" class="auth-form">
+                <p class="auth-form-subtitle">Welcome back. Sign in to your account.</p>
+                <div class="auth-field">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <div class="auth-field">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password">
+                </div>
+                <p id="login-error" class="auth-error"></p>
+                <button id="login-submit-btn" class="btn btn-primary" style="width: 100%; margin-top: 8px; padding: 12px;">
+                    Log In
+                </button>
+            </div>
+
+            <!-- Signup Form -->
+            <div id="auth-form-signup" class="auth-form" style="display: none;">
+                <p class="auth-form-subtitle">Create your account to get started.</p>
+                <div class="auth-field">
+                    <label for="signup-name">Full Name</label>
+                    <input type="text" id="signup-name" placeholder="Jane Smith" autocomplete="name">
+                </div>
+                <div class="auth-field">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <div class="auth-field">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" placeholder="Min. 6 characters" autocomplete="new-password">
+                </div>
+                <p id="signup-error" class="auth-error"></p>
+                <button id="signup-submit-btn" class="btn btn-primary" style="width: 100%; margin-top: 8px; padding: 12px;">
+                    Create Account
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Logic -->
+    <script src="app.js"></script>
+</body>
+</html>

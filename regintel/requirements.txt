@@ -1,0 +1,25 @@
+# RegIntel — Regulatory Document Intelligence Engine
+# Python 3.10+ required
+
+langchain==0.3.7
+langchain-groq==0.2.1
+langchain-community==0.3.7
+groq==0.28.0
+
+chromadb==0.5.20
+sentence-transformers==3.3.1
+
+pymupdf==1.24.14
+reportlab==4.2.5
+
+streamlit==1.40.1
+pandas==2.2.3
+plotly==5.24.1
+
+pydantic==2.10.2
+python-dotenv==1.0.1
+tenacity==9.0.0
+openpyxl==3.1.5
+flask==3.0.3
+
+
