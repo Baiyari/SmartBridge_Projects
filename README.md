@@ -1,60 +1,183 @@
-# 🚀 SmartBridge Projects Portfolio
+# SmartBridge Projects Portfolio
 
-A collection of AI-powered projects developed as part of the SmartBridge internship program.
+This repository contains a collection of AI-powered projects developed as part of the SmartBridge AI/ML Internship Program. These projects demonstrate the application of Machine Learning, Generative AI, Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), Natural Language Processing (NLP), Data Analytics, and Full-Stack Development to solve real-world business problems across multiple domains.
+
+## Projects
+
+### 1. SmartStudyAI
+**Domain:** Education Technology
+
+An AI-powered academic assistant that simplifies learning by extracting text from documents, generating concise summaries, and producing simplified explanations using Large Language Models.
+
+**Key Features**
+- PDF, DOCX, and TXT document processing
+- AI-generated summaries
+- Simplified content generation
+- Interactive web interface
+- Multi-format file support
+
+**Technologies**
+- Python
+- Flask
+- Transformers
+- Hugging Face
+- HTML
+- CSS
+- JavaScript
 
 ---
 
-## 1. 🔍 SEO Audit Agent
-**An enterprise-grade autonomous website SEO auditing tool**
+### 2. AttritionIQ – Employee Attrition Risk Predictor
+**Domain:** Human Resources
 
-Built with Python, Ollama (Mistral LLM), Flask, and Google Sheets integration.
+An intelligent HR analytics platform that predicts employee attrition risk using machine learning and provides actionable retention recommendations through interactive dashboards.
 
-**Key Features:**
-- Async BFS crawler that discovers all internal pages
-- Metadata validation (title, description, Open Graph tags)
-- Keyword density analysis and readability scoring
+**Key Features**
+- Employee attrition prediction
+- Risk score generation
+- Dashboard visualizations
+- AI-powered retention recommendations
+- HR analytics
+
+**Technologies**
+- Python
+- Flask
+- Scikit-learn
+- Pandas
+- Plotly
+- HTML
+- CSS
+- JavaScript
+
+---
+
+### 3. SEO Audit Agent
+**Domain:** Digital Marketing
+
+An AI-powered SEO auditing tool that crawls websites, evaluates technical SEO parameters, identifies optimization issues, and generates improvement recommendations.
+
+**Key Features**
+- Website crawling
+- Metadata validation
+- Keyword analysis
+- Readability analysis
 - Broken link detection
-- AI-powered fix recommendations via Mistral LLM
-- REST API with Flask
-- Real-time Google Sheets reporting dashboard
-- Premium marketing landing page with live pipeline simulators
+- AI-generated SEO recommendations
 
-**Tech Stack:** Python, Flask, Ollama, Mistral, Google Sheets API, aiohttp, BeautifulSoup
-
----
-
-## 2. 📊 Attrition Risk Predictor
-**A machine learning project that predicts employee attrition risk**
-
-Helps organizations identify employees at risk of leaving using predictive analytics.
-
-**Key Features:**
-- Data preprocessing and feature engineering
-- Machine learning model for attrition prediction
-- Risk scoring and alert management
-- Interactive dashboard for HR teams
-
-**Tech Stack:** Python, Pandas, Scikit-learn, Machine Learning
+**Technologies**
+- Python
+- Flask
+- LangChain
+- Ollama
+- ChromaDB
+- HTML
+- CSS
+- JavaScript
 
 ---
 
-## 3. 📚 SmartStudy AI
-**An AI-powered smart study assistant application**
+### 4. RegIntel – Regulatory Intelligence Engine
+**Domain:** BFSI Compliance
 
-Helps students learn more effectively using artificial intelligence.
+A Retrieval-Augmented Generation (RAG) based application that assists organizations in analyzing regulatory documents, identifying compliance requirements, and answering policy-related questions using AI.
 
-**Key Features:**
-- AI-powered study recommendations
-- Intelligent content summarization
-- Personalized learning paths
+**Key Features**
+- Regulatory document ingestion
+- Semantic search
+- RAG-based question answering
+- Compliance gap identification
+- Intelligent document retrieval
 
-**Tech Stack:** Python, AI/ML
+**Technologies**
+- Python
+- Flask
+- LangChain
+- ChromaDB
+- Groq API
+- HTML
+- CSS
+- JavaScript
 
 ---
 
-## 👩‍💻 Author
+### 5. PrismRisk – Earnings Call & Credit Risk Intelligence Agent
+**Domain:** Banking and Financial Services
+
+An AI-driven financial intelligence platform that analyzes earnings call transcripts and financial reports to assess organizational credit risk and generate explainable insights.
+
+**Key Features**
+- Earnings call transcript analysis
+- Financial risk assessment
+- Sentiment analysis
+- AI-generated risk summaries
+- Interactive dashboard
+
+**Technologies**
+- Python
+- Flask
+- LangChain
+- ChromaDB
+- Plotly
+- HTML
+- CSS
+- JavaScript
+
+---
+
+## Repository Structure
+
+```
+SmartBridge_Projects/
+│
+├── SmartStudyAI/
+├── attrition_risk_predictor/
+├── seo_agent/
+├── regintel/
+├── PrismRisk/
+└── README.md
+```
+
+---
+
+## Skills Demonstrated
+
+- Artificial Intelligence
+- Machine Learning
+- Generative AI
+- Large Language Models (LLMs)
+- Retrieval-Augmented Generation (RAG)
+- Natural Language Processing
+- Predictive Analytics
+- Data Visualization
+- Information Retrieval
+- Full-Stack Web Development
+- Prompt Engineering
+- REST API Development
+
+---
+
+## Tech Stack
+
+- Python
+- Flask
+- LangChain
+- ChromaDB
+- Scikit-learn
+- Transformers
+- Hugging Face
+- Pandas
+- Plotly
+- HTML
+- CSS
+- JavaScript
+
+---
+
+## Author
+
 **Baiyari Debbarma**
-- GitHub: [@Baiyari](https://github.com/Baiyari)
 
----
-*Developed during SmartBridge Internship Program 2026*
+MBA – Data Science & Data Analytics  
+Symbiosis Centre for Information Technology (SCIT)
+
+SmartBridge AI/ML Internship Program
